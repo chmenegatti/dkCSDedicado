@@ -25,10 +25,9 @@ echo ">>> Updating HLDS via SteamCMD..."
 mkdir -p ~/.steam/sdk32
 ln -sf "$HLDS_DIR/steamclient.so" ~/.steam/sdk32/steamclient.so 2>/dev/null || true
 
-# Allow panel container (www-data) to write mapcycle and upload maps
+# Allow panel container (www-data) to write maps uploads
 mkdir -p "$CSTRIKE/maps"
 chmod 777 "$CSTRIKE/maps"
-[ -f "$CSTRIKE/mapcycle.txt" ] && chmod 666 "$CSTRIKE/mapcycle.txt" || true
 [ -d "$CSTRIKE/addons/podbot" ] && chmod 777 "$CSTRIKE/addons/podbot" || true
 [ -f "$CSTRIKE/addons/podbot/botnames.txt" ] && chmod 666 "$CSTRIKE/addons/podbot/botnames.txt" || true
 
@@ -143,6 +142,7 @@ cs_office
 cs_militia
 EOF
 fi
+chmod 666 "$CSTRIKE/mapcycle.txt"
 
 # ─── Generate server.cfg ──────────────────────────────────────────────────────
 mkdir -p "$CSTRIKE"
