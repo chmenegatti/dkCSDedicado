@@ -253,7 +253,7 @@ export default function ServerTab() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1 flex items-center gap-2 px-3 rounded-md bg-background border border-border focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/40 transition-colors">
                 <span className="font-mono text-primary text-sm">$</span>
                 <input
@@ -266,7 +266,7 @@ export default function ServerTab() {
               </div>
               <button
                 onClick={send}
-                className="px-5 rounded-md bg-gradient-primary text-primary-foreground font-mono text-sm font-semibold hover:shadow-glow transition-all flex items-center gap-2"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-gradient-primary text-primary-foreground font-mono text-sm font-semibold hover:shadow-glow transition-all flex items-center justify-center gap-2"
               >
                 <Send className="h-3.5 w-3.5" />
                 Enviar

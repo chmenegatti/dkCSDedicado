@@ -25,22 +25,31 @@ const Slider = ({
 );
 
 const Toggle = ({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) => (
-  <div className="flex items-center justify-between py-1">
+  <div className="flex items-center justify-between py-1.5">
     <span className="font-mono text-sm">
       {label} {hint && <span className="text-muted-foreground/70 text-xs">{hint}</span>}
     </span>
     <button
+      role="switch"
+      aria-checked={value}
       onClick={() => onChange(!value)}
-      className={`relative h-6 w-12 rounded-full border transition-colors ${
-        value ? "bg-secondary/20 border-secondary/60" : "bg-surface-elevated border-border"
+      className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+        value
+          ? "border-green-500 bg-green-500/20"
+          : "border-border bg-surface-elevated"
       }`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full transition-transform ${
-        value ? "translate-x-6 bg-secondary shadow-tactical" : "translate-x-0.5 bg-muted-foreground"
-      }`} />
-      <span className={`absolute inset-0 grid place-items-center font-mono text-[9px] font-bold tracking-wider ${value ? "pl-1 text-secondary" : "pr-1 text-muted-foreground justify-self-end"}`}>
-        {value ? "ON" : "OFF"}
-      </span>
+      {/* track label */}
+      <span className={`absolute inset-0 flex items-center font-mono text-[9px] font-bold tracking-widest transition-opacity ${value ? "justify-start pl-2 text-green-400 opacity-100" : "opacity-0"}`}>ON</span>
+      <span className={`absolute inset-0 flex items-center font-mono text-[9px] font-bold tracking-widest transition-opacity ${!value ? "justify-end pr-2 text-muted-foreground opacity-100" : "opacity-0"}`}>OFF</span>
+      {/* thumb */}
+      <span
+        className={`pointer-events-none relative inline-block h-6 w-6 transform rounded-full shadow-md ring-0 transition-all duration-200 ${
+          value
+            ? "translate-x-[28px] bg-green-400 shadow-green-500/40"
+            : "translate-x-0 bg-muted-foreground/80"
+        }`}
+      />
     </button>
   </div>
 );
