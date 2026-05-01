@@ -29,6 +29,8 @@ ln -sf "$HLDS_DIR/steamclient.so" ~/.steam/sdk32/steamclient.so 2>/dev/null || t
 mkdir -p "$CSTRIKE/maps"
 chmod 777 "$CSTRIKE/maps"
 [ -f "$CSTRIKE/mapcycle.txt" ] && chmod 666 "$CSTRIKE/mapcycle.txt" || true
+[ -d "$CSTRIKE/addons/podbot" ] && chmod 777 "$CSTRIKE/addons/podbot" || true
+[ -f "$CSTRIKE/addons/podbot/botnames.txt" ] && chmod 666 "$CSTRIKE/addons/podbot/botnames.txt" || true
 
 # ─── AMX Mod X + Metamod (install once into the volume) ───────────────────────
 if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
@@ -65,6 +67,56 @@ if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
         > "$CSTRIKE/addons/metamod/plugins.ini"
 
     echo ">>> AMX Mod X installed."
+fi
+
+# ─── PODBot mm V3B24 (install once into the volume) ──────────────────────────
+PODBOT_SO="$CSTRIKE/addons/podbot/podbot_mm.so"
+if [ ! -f "$PODBOT_SO" ]; then
+    echo ">>> Installing PODBot mm V3B24..."
+    PODBOT_URL="https://github.com/APGRoboCop/podbot_mm/releases/download/V3B24-APG/podbot_full_V3B24.zip"
+    PODBOT_TMP="/tmp/podbot_install"
+    mkdir -p "$PODBOT_TMP"
+
+    if curl -fsSL --max-time 120 -o "$PODBOT_TMP/podbot.zip" "$PODBOT_URL"; then
+        # Extract the podbot/ folder, skip docs and Windows DLL
+        unzip -q "$PODBOT_TMP/podbot.zip" "podbot/*" -d "$PODBOT_TMP/" -x "podbot/pod_v3 docs/*"
+        mkdir -p "$CSTRIKE/addons/podbot"
+        cp -r "$PODBOT_TMP/podbot/." "$CSTRIKE/addons/podbot/"
+        rm -f "$CSTRIKE/addons/podbot/podbot_mm.dll"   # remove Windows DLL
+
+        if [ -f "$PODBOT_SO" ]; then
+            # Register in Metamod
+            if ! grep -q "podbot_mm" "$CSTRIKE/addons/metamod/plugins.ini" 2>/dev/null; then
+                echo "linux addons/podbot/podbot_mm.so" >> "$CSTRIKE/addons/metamod/plugins.ini"
+            fi
+            # Override botnames with Brazilian/fun names
+            cat > "$CSTRIKE/addons/podbot/botnames.txt" <<'EOF'
+Pistoleiro
+Fragger
+Sniper_Pro
+Rush_B
+Fumaceiro
+Headshot_King
+Bombeiro
+Defusador
+Clutch_Master
+Wallbanger
+Camper_Pro
+FlashBot
+AK_Master
+AWP_God
+Pistol_Pete
+EOF
+            chmod 666 "$CSTRIKE/addons/podbot/botnames.txt"
+            chmod 777 "$CSTRIKE/addons/podbot"
+            echo ">>> PODBot mm V3B24 installed."
+        else
+            echo ">>> WARNING: podbot_mm.so not found after extraction — skipping."
+        fi
+    else
+        echo ">>> WARNING: PODBot mm download failed. Bots unavailable."
+    fi
+    rm -rf "$PODBOT_TMP"
 fi
 
 # ─── Admin password (re-applied on every start to pick up env changes) ─────────

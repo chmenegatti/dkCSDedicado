@@ -188,6 +188,45 @@ if ($auth && isset($_GET['api'])) {
             rename($part, $dest);
             echo json_encode(['success'=>true,'name'=>basename($name,'.bsp')]); break;
 
+        case 'botnames_get':
+            $file = "$CSTRIKE/addons/podbot/botnames.txt";
+            echo json_encode(['content' => is_file($file) ? file_get_contents($file) : '', 'exists' => is_file($file)]); break;
+
+        case 'botnames_save':
+            if (!$isPost) { http_response_code(405); break; }
+            $file = "$CSTRIKE/addons/podbot/botnames.txt";
+            if (!is_file($file)) { echo json_encode(['success'=>false,'error'=>'PODBot não instalado (arquivo não encontrado).']); break; }
+            $raw   = $_POST['content'] ?? '';
+            $names = array_filter(array_map(fn($l) => substr(trim($l), 0, 21), explode("\n", $raw)), fn($l) => strlen($l) > 0 && $l[0] !== '#');
+            if (count($names) < 9) { echo json_encode(['success'=>false,'error'=>'Mínimo de 9 nomes necessários.']); break; }
+            $content = implode("\n", $names) . "\n";
+            $tmp = "$file.tmp";
+            if (file_put_contents($tmp, $content) !== false && rename($tmp, $file)) {
+                chmod($file, 0666);
+                echo json_encode(['success'=>true, 'saved'=>count($names)]);
+            } else {
+                echo json_encode(['success'=>false,'error'=>'Falha ao salvar — verifique permissões do volume.']);
+            }
+            break;
+
+        case 'bots_apply':
+            if (!$isPost) { http_response_code(405); break; }
+            $quota = max(0, min(10, (int)($_POST['quota'] ?? 0)));
+            $skill = max(0, min(100, (int)($_POST['skill'] ?? 60)));
+            $rcon  = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
+            $rcon->execute("pb_maxbots $quota");
+            $rcon->execute("pb_minbotskill $skill");
+            $rcon->execute("pb_maxbotskill " . min(100, $skill + 20));
+            if ($quota > 0) $rcon->execute("pb fillserver");
+            echo json_encode(['success'=>true,'output'=>"$quota bot(s) | skill $skill–" . min(100,$skill+20) . " aplicados."]); break;
+
+        case 'bots_kickall':
+            if (!$isPost) { http_response_code(405); break; }
+            $rcon = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
+            $rcon->execute("pb_maxbots 0");
+            $r = $rcon->execute("pb removebots");
+            echo json_encode(['success'=>true,'output'=>'Bots removidos do servidor.']); break;
+
         case 'settings_get':
             $keys = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
                      'mp_startmoney','mp_c4timer','mp_friendlyfire','mp_autoteambalance',
@@ -357,6 +396,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <nav class="tabs">
   <button class="tab active" data-tab="server">Servidor</button>
   <button class="tab" data-tab="maps">Mapas</button>
+  <button class="tab" data-tab="bots">🤖 Bots</button>
   <button class="tab" data-tab="config">⚙️ Configurações</button>
 </nav>
 
@@ -450,6 +490,63 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 </div>
 </div>
 
+<!-- ═══ TAB: BOTS ════════════════════════════════════════════════════════════ -->
+<div id="tab-bots" class="tab-content">
+<div class="cfg-layout">
+  <div class="cfg-top">
+    <h2>🤖 Gerenciar Bots (PODBot mm)</h2>
+    <span id="botsMsg" class="cfg-msg"></span>
+  </div>
+  <div class="cfg-grid">
+
+    <div class="card">
+      <h2>⚙️ Controle</h2>
+      <div class="cfg-row">
+        <div class="cfg-row-head">
+          <span class="cfg-label">Número de Bots</span>
+          <span class="cfg-val" id="val-quota">5</span>
+        </div>
+        <input type="range" id="rng-quota" min="0" max="10" step="1" value="5"
+               oninput="document.getElementById('val-quota').textContent=this.value">
+        <div class="cfg-subtext">0 = sem bots · PODBot mantém a quantidade automaticamente</div>
+      </div>
+      <div class="cfg-row">
+        <div class="cfg-row-head">
+          <span class="cfg-label">Habilidade</span>
+          <span class="cfg-val" id="val-skill">60</span>
+        </div>
+        <input type="range" id="rng-skill" min="0" max="100" step="10" value="60"
+               oninput="syncSkill(this.value)">
+        <div style="display:flex;justify-content:space-between;color:#444;font-size:10px;margin-top:3px">
+          <span>Fácil</span><span>Normal</span><span>Difícil</span><span>Insano</span>
+        </div>
+        <div class="cfg-subtext" id="skill-hint">Skill 60–80 (faixa aplicada ao servidor)</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn green" onclick="applyBots()" style="flex:1">✔ Aplicar</button>
+        <button class="btn" onclick="kickAllBots()" style="color:#e87070;border-color:#5c1a1a;background:#1a0808">✕ Remover Todos</button>
+      </div>
+      <div style="color:#444;font-size:11px;margin-top:10px;line-height:1.6">
+        Requer <strong style="color:#666">PODBot mm</strong> instalado no servidor.<br>
+        Instalado automaticamente na primeira inicialização do container.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 Nomes dos Bots <span style="color:#444;font-weight:normal">(mín. 9 · máx. 21 chars/nome)</span></h2>
+      <textarea class="cycle-area" id="botnamesArea" placeholder="Pistoleiro&#10;Fragger&#10;Sniper_Pro&#10;..."></textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn green" onclick="saveBotnames()" style="flex:1">💾 Salvar Nomes</button>
+        <button class="btn sm" onclick="loadBotnames()" style="color:#888;border-color:#2a2a2a;background:#161616">↺ Recarregar</button>
+      </div>
+      <div id="botnamesMsg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+      <div style="color:#444;font-size:11px;margin-top:6px">O prefixo [POD] e o nível são adicionados automaticamente pelo PODBot.</div>
+    </div>
+
+  </div>
+</div>
+</div>
+
 <!-- ═══ TAB: CONFIGURAÇÕES ══════════════════════════════════════════════════ -->
 <div id="tab-config" class="tab-content">
 <div class="cfg-layout">
@@ -476,6 +573,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'maps')   { loadMaps(); loadCycle(); }
+    if (btn.dataset.tab === 'bots')   { loadBotnames(); }
     if (btn.dataset.tab === 'config') { if (!document.getElementById('rng_mp_timelimit')) buildSettings(); loadSettings(); }
   });
 });
@@ -729,6 +827,59 @@ function toggleCfg(btn) {
   btn.dataset.val = v;
   btn.textContent = v === '1' ? 'ON' : 'OFF';
   btn.classList.toggle('on', v === '1');
+}
+
+// ─── Bots tab ─────────────────────────────────────────────────────────────────
+function syncSkill(v) {
+  document.getElementById('val-skill').textContent = v;
+  const hi = Math.min(100, parseInt(v) + 20);
+  document.getElementById('skill-hint').textContent = `Skill ${v}–${hi} (faixa aplicada ao servidor)`;
+}
+
+async function applyBots() {
+  const quota = document.getElementById('rng-quota').value;
+  const skill = document.getElementById('rng-skill').value;
+  const msg   = document.getElementById('botsMsg');
+  msg.textContent = 'Aplicando...'; msg.className = 'cfg-msg';
+  try {
+    const fd = new FormData(); fd.append('quota', quota); fd.append('skill', skill);
+    const d = await (await fetch('?api=bots_apply', {method:'POST',body:fd})).json();
+    msg.textContent = d.success ? ('✔ ' + d.output) : ('⚠️ ' + (d.error || d.output));
+    msg.className = 'cfg-msg ' + (d.success ? 'ok' : 'err');
+  } catch(e) { msg.textContent = '⚠️ Erro de comunicação'; msg.className = 'cfg-msg err'; }
+}
+
+async function kickAllBots() {
+  const msg = document.getElementById('botsMsg');
+  msg.textContent = 'Removendo bots...'; msg.className = 'cfg-msg';
+  try {
+    const d = await (await fetch('?api=bots_kickall', {method:'POST',body:new FormData()})).json();
+    msg.textContent = d.success ? '✔ ' + d.output : '⚠️ ' + (d.error||d.output);
+    msg.className = 'cfg-msg ' + (d.success ? 'ok' : 'err');
+  } catch(e) { msg.textContent = '⚠️ Erro de comunicação'; msg.className = 'cfg-msg err'; }
+}
+
+async function loadBotnames() {
+  const msg  = document.getElementById('botnamesMsg');
+  const area = document.getElementById('botnamesArea');
+  msg.textContent = 'Carregando...'; msg.style.color = '#666';
+  try {
+    const d = await (await fetch('?api=botnames_get')).json();
+    if (!d.exists) { msg.textContent = '⚠️ PODBot não instalado ou ainda inicializando o servidor.'; msg.style.color = '#e87070'; return; }
+    area.value = d.content;
+    msg.textContent = ''; 
+  } catch(e) { msg.textContent = '⚠️ Erro ao carregar'; msg.style.color = '#e87070'; }
+}
+
+async function saveBotnames() {
+  const msg  = document.getElementById('botnamesMsg');
+  const fd   = new FormData(); fd.append('content', document.getElementById('botnamesArea').value);
+  msg.textContent = 'Salvando...'; msg.style.color = '#666';
+  try {
+    const d = await (await fetch('?api=botnames_save', {method:'POST',body:fd})).json();
+    msg.textContent = d.success ? `✔ ${d.saved} nomes salvos com sucesso.` : '⚠️ ' + d.error;
+    msg.style.color = d.success ? '#6bc46b' : '#e87070';
+  } catch(e) { msg.textContent = '⚠️ Erro de comunicação'; msg.style.color = '#e87070'; }
 }
 
 async function loadSettings() {
