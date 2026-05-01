@@ -29,6 +29,7 @@
 | 🌐 **Rede privada ZeroTier** | Jogue com amigos pela internet sem abrir portas no roteador |
 | 🤖 **Autorização automática** | Novos jogadores são autorizados no ZeroTier sem intervenção |
 | 🖥️ **Painel web** | Console RCON, lista de jogadores, status em tempo real |
+| ⚙️ **Configurações de jogo** | Ajuste tempo de partida, dinheiro inicial, C4 timer e muito mais pelo painel |
 | 🗺️ **Gestão de mapas** | Upload de mapas, edição da rotação, troca imediata |
 | 🛡️ **AMX Mod X** | Instalação automática na primeira execução |
 | 🔄 **Auto-restart** | Servidor reinicia automaticamente em caso de crash |
@@ -111,9 +112,7 @@ PANEL_PASSWORD=outra_senha_forte   # login do painel
 ADMIN_PASSWORD=senha_amx           # admin in-game (AMX Mod X)
 
 # ── ZeroTier ─────────────────────────────────────
-ZEROTIER_NETWORK_ID=               # ID da sua rede ZeroTier
-ZEROTIER_API_TOKEN=                # token da API ZeroTier
-POLL_INTERVAL=15                   # segundos entre verificações
+POLL_INTERVAL=15                   # segundos entre verificações de novos membros
 ```
 
 > ⚠️ **Nunca commite o arquivo `.env`** — ele já está no `.gitignore`.
@@ -258,7 +257,7 @@ Acesse em: **[http://localhost:8080](http://localhost:8080)**
 | **Status** | Mostra se o servidor está online, mapa atual e jogadores |
 | **Jogadores** | Lista em tempo real com score e tempo de jogo |
 | **Trocar Mapa** | Campo de texto + botão para `changelevel` imediato |
-| **Ações Rápidas** | Restart de round, cheats, frendly fire, timelimit |
+| **Ações Rápidas** | Restart de round, cheats, friendly fire, timelimit |
 | **Console RCON** | Terminal completo com histórico (↑↓) de comandos |
 
 ### Aba Mapas
@@ -270,6 +269,19 @@ Acesse em: **[http://localhost:8080](http://localhost:8080)**
 | **➕ Rotação** | Adiciona o mapa à `mapcycle.txt` |
 | **Editor de Rotação** | Edita e salva a `mapcycle.txt` diretamente |
 | **Upload de Mapa** | Drag & drop de arquivos `.bsp` (até 64 MB) |
+
+### Aba ⚙️ Configurações
+
+Ajuste as regras da partida em tempo real, sem reiniciar o servidor.  
+Clique em **↺ Carregar do Servidor** para ver os valores atuais, ajuste e clique em **✔ Aplicar**.
+
+| Seção | Configurações |
+|---|---|
+| ⏱ **Partida** | Duração (`mp_timelimit`), Máx. Rounds (`mp_maxrounds`), Vitórias para Trocar Mapa (`mp_winlimit`) |
+| 🔄 **Rounds** | Tempo do Round (`mp_roundtime`), Freeze Time (`mp_freezetime`), Tempo de Compra (`mp_buytime`), Timer da C4 (`mp_c4timer`) |
+| 👥 **Jogadores** | Dinheiro Inicial (`mp_startmoney`), Desequilíbrio Máx. (`mp_limitteams`), Fogo Amigo, Balance Automático, Auto Kick |
+
+> 💡 Todas as configurações são aplicadas via RCON e entram em vigor imediatamente — sem reiniciar o servidor.
 
 ---
 
