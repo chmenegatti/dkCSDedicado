@@ -141,7 +141,7 @@ export default function ConfigTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
+      <div className="grid grid-cols-12 gap-3 sm:gap-5">
         <section className="panel col-span-12 md:col-span-6 lg:col-span-4">
           <div className="panel-header">
             <Clock className="h-3.5 w-3.5 text-primary" />

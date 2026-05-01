@@ -95,9 +95,9 @@ export default function ServerTab() {
   };
 
   return (
-    <div className="grid grid-cols-12 gap-5">
+    <div className="grid grid-cols-12 gap-3 sm:gap-5">
       {/* Left column */}
-      <div className="col-span-12 lg:col-span-3 space-y-5">
+      <div className="col-span-12 lg:col-span-3 space-y-3 sm:space-y-5">
         {/* Status */}
         <section className="panel overflow-hidden">
           <div className="panel-header">
@@ -178,7 +178,7 @@ export default function ServerTab() {
       </div>
 
       {/* Right column */}
-      <div className="col-span-12 lg:col-span-9 space-y-5">
+      <div className="col-span-12 lg:col-span-9 space-y-3 sm:space-y-5">
         {/* Players */}
         <section className="panel">
           <div className="panel-header justify-between">
@@ -198,13 +198,13 @@ export default function ServerTab() {
                 Nenhum jogador online
               </div>
             ) : (
-              <table className="w-full font-mono text-sm">
+              <table className="w-full font-mono text-xs sm:text-sm">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 border-b border-border/50">
-                    <th className="text-left font-normal py-2.5 pl-5 w-10">#</th>
+                    <th className="text-left font-normal py-2.5 pl-3 sm:pl-5 w-8">#</th>
                     <th className="text-left font-normal py-2.5">Nome</th>
                     <th className="text-right font-normal py-2.5">Score</th>
-                    <th className="text-right font-normal py-2.5 pr-5">Tempo</th>
+                    <th className="text-right font-normal py-2.5 pr-3 sm:pr-5">Tempo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,12 +213,12 @@ export default function ServerTab() {
                       key={i}
                       className="border-b border-border/30 last:border-0 group hover:bg-surface-elevated/60 transition-colors"
                     >
-                      <td className="py-3 pl-5 text-muted-foreground">{i + 1}</td>
-                      <td className="py-3">
+                      <td className="py-2.5 pl-3 sm:pl-5 text-muted-foreground">{i + 1}</td>
+                      <td className="py-2.5 max-w-[120px] sm:max-w-none truncate">
                         <span>{p.name}</span>
                       </td>
-                      <td className="py-3 text-right text-primary text-glow-primary">{p.score}</td>
-                      <td className="py-3 text-right text-muted-foreground pr-5">{p.time}</td>
+                      <td className="py-2.5 text-right text-primary text-glow-primary">{p.score}</td>
+                      <td className="py-2.5 text-right text-muted-foreground pr-3 sm:pr-5">{p.time}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -236,7 +236,7 @@ export default function ServerTab() {
           <div className="p-4 space-y-3">
             <div
               ref={consoleRef}
-              className="h-72 overflow-y-auto scrollbar-thin rounded-md bg-background border border-border/60 p-4 font-mono text-xs leading-relaxed"
+              className="h-48 sm:h-72 overflow-y-auto scrollbar-thin rounded-md bg-background border border-border/60 p-3 sm:p-4 font-mono text-xs leading-relaxed"
             >
               {logs.map((l, i) => (
                 <div

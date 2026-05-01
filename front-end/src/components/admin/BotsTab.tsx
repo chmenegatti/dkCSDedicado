@@ -70,7 +70,7 @@ export default function BotsTab() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/30 grid place-items-center">
           <Bot className="h-5 w-5 text-primary" />
@@ -81,7 +81,7 @@ export default function BotsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
+      <div className="grid grid-cols-12 gap-3 sm:gap-5">
         <section className="panel col-span-12 lg:col-span-7">
           <div className="panel-header">
             <Settings className="h-3.5 w-3.5 text-primary" />

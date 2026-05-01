@@ -81,8 +81,8 @@ export default function MapsTab() {
   };
 
   return (
-    <div className="grid grid-cols-12 gap-5">
-      <div className="col-span-12 lg:col-span-7 space-y-5">
+    <div className="grid grid-cols-12 gap-3 sm:gap-5">
+      <div className="col-span-12 lg:col-span-7 space-y-3 sm:space-y-5">
         <section className="panel">
           <div className="panel-header justify-between">
             <span className="flex items-center gap-2">
