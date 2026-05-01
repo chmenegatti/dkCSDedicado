@@ -103,6 +103,52 @@ function mapExists(string $name, string $cstrike): bool {
     return file_exists("$cstrike/maps/$name.bsp");
 }
 
+function rconCommandError(array $result): ?string {
+    if (!($result['success'] ?? false)) return $result['output'] ?? 'Falha ao executar comando.';
+
+    $output = strtolower($result['output'] ?? '');
+    foreach (['unknown command', 'is not a valid command', 'not recognized'] as $needle) {
+        if (str_contains($output, $needle)) return $result['output'] ?: 'Comando não reconhecido pelo servidor.';
+    }
+
+    return null;
+}
+
+function runRconCommand(Rcon $rcon, string $command): ?string {
+    return rconCommandError($rcon->execute($command));
+}
+
+function applyBotQuota(Rcon $rcon, int $quota, int $skill): array {
+    $minSkill = max(0, min(100, $skill));
+    $maxSkill = min(100, $minSkill + 20);
+
+    foreach ([
+        'pb_bot_quota_match 0',
+        'pb_minbots 0',
+        'pb_maxbots 0',
+        'pb removebots',
+        "pb_minbotskill $minSkill",
+        "pb_maxbotskill $maxSkill",
+    ] as $command) {
+        $error = runRconCommand($rcon, $command);
+        if ($error !== null) return ['success' => false, 'output' => $error];
+    }
+
+    $added = 0;
+    for ($i = 0; $i < $quota; $i++) {
+        $botSkill = $maxSkill > $minSkill ? random_int($minSkill, $maxSkill) : $minSkill;
+        $error = runRconCommand($rcon, "pb add $botSkill");
+        if ($error !== null) {
+            return ['success' => false, 'output' => $added > 0
+                ? "Falha ao adicionar bots após $added inserção(ões): $error"
+                : $error];
+        }
+        $added++;
+    }
+
+    return ['success' => true, 'output' => "$added bot(s) adicionados | skill $minSkill–$maxSkill."];
+}
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 if ($auth && isset($_GET['api'])) {
     error_reporting(0);          // evita warnings de socket vazarem no JSON
@@ -214,19 +260,19 @@ if ($auth && isset($_GET['api'])) {
             $quota = max(0, min(10, (int)($_POST['quota'] ?? 0)));
             $skill = max(0, min(100, (int)($_POST['skill'] ?? 60)));
             $rcon  = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
-            $rcon->execute("pb_maxbots $quota");
-            $rcon->execute("pb_minbotskill $skill");
-            $rcon->execute("pb_maxbotskill " . min(100, $skill + 20));
-            if ($quota > 0) $rcon->execute("pb fillserver");
-            echo json_encode(['success'=>true,'output'=>"$quota bot(s) | skill $skill–" . min(100,$skill+20) . " aplicados."]); break;
+            echo json_encode(applyBotQuota($rcon, $quota, $skill)); break;
 
         case 'bots_kickall':
             if (!$isPost) { http_response_code(405); break; }
             $rcon = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
-            $rcon->execute("pb_minbots 0");
-            $rcon->execute("pb_maxbots 0");
-            $rcon->execute("pb removebots");
-            echo json_encode(['success'=>true,'output'=>'Bots desativados e removidos do servidor.']); break;
+            foreach (['pb_bot_quota_match 0', 'pb_minbots 0', 'pb_maxbots 0', 'pb removebots'] as $command) {
+                $error = runRconCommand($rcon, $command);
+                if ($error !== null) {
+                    echo json_encode(['success'=>false,'output'=>$error]);
+                    break 2;
+                }
+            }
+            echo json_encode(['success'=>true,'output'=>'Bots removidos do servidor.']); break;
 
         case 'settings_get':
             $keys = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
