@@ -8,6 +8,7 @@ RUN dpkg --add-architecture i386 && \
     apt-get install -y \
         curl \
         unzip \
+        xz-utils \
         ca-certificates \
         lib32gcc-s1 \
         lib32stdc++6 \

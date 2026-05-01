@@ -12,6 +12,8 @@ SERVER_REGION="${SERVER_REGION:-2}"   # 2 = South America
 
 HLDS_DIR="/home/steam/hlds"
 CSTRIKE="$HLDS_DIR/cstrike"
+METAMOD_DIR="$CSTRIKE/addons/metamod"
+METAMOD_SO="$METAMOD_DIR/dlls/metamod_i386.so"
 
 # ─── SteamCMD update ──────────────────────────────────────────────────────────
 echo ">>> Updating HLDS via SteamCMD..."
@@ -54,31 +56,52 @@ if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
     curl -fsSL "${AMXX_URL}/amxmodx-${AMXX_VER}-git${AMXX_BUILD}-cstrike-linux.tar.gz" \
         | tar -xz -C "$CSTRIKE"
 
-    # Hook Metamod into HLDS (replaces the game DLL entry in liblist.gam)
-    if [ -f "$CSTRIKE/liblist.gam" ]; then
-        sed -i 's|gamedll_linux "[^"]*"|gamedll_linux "addons/metamod/dlls/metamod.so"|' \
-            "$CSTRIKE/liblist.gam"
-    fi
-
-    # Register AMX Mod X as a Metamod plugin
-    mkdir -p "$CSTRIKE/addons/metamod"
-    echo "linux addons/amxmodx/dlls/amxmodx_mm_i386.so" \
-        > "$CSTRIKE/addons/metamod/plugins.ini"
-
     echo ">>> AMX Mod X installed."
 fi
 
-# ─── Re-apply Metamod hook (SteamCMD validate resets liblist.gam every start) ─
-if [ -f "$CSTRIKE/liblist.gam" ]; then
-    sed -i 's|gamedll_linux "[^"]*"|gamedll_linux "addons/metamod/dlls/metamod.so"|' \
-        "$CSTRIKE/liblist.gam"
+# ─── Install Metamod-P binary if missing ──────────────────────────────────────
+# metamod-p 1.21p38: maintained fork with better compatibility for modern HLDS
+if [ ! -f "$METAMOD_SO" ]; then
+    echo ">>> Installing Metamod-P 1.21p38..."
+    METAMOD_TMP="/tmp/metamod_install"
+    mkdir -p "$METAMOD_TMP" "$METAMOD_DIR/dlls"
+
+    METAMOD_P_URL="https://github.com/Bots-United/metamod-p/releases/download/v1.21p38/metamod_i686_linux_win32-1.21p38.tar.xz"
+    if curl -fsSL --max-time 120 "$METAMOD_P_URL" \
+        | tar -xJ -C "$METAMOD_TMP" "metamod.so"; then
+        cp "$METAMOD_TMP/metamod.so" "$METAMOD_SO"
+        chmod 755 "$METAMOD_SO"
+        echo ">>> Metamod-P installed."
+    else
+        echo ">>> ERROR: failed to download Metamod-P binary."
+        exit 1
+    fi
+
+    rm -rf "$METAMOD_TMP"
+fi
+
+# ─── Re-apply Metamod hook ─────────────────────────────────────────────────────
+# HLDS 10211 only successfully loads from dlls/cs.so (the vanilla path).
+# Strategy: install Metamod AS dlls/cs.so; preserve real CS DLL as dlls/cs_real.so.
+# liblist.gam stays with its original "dlls/cs.so" — no sed needed.
+if [ -f "$CSTRIKE/dlls/cs.so" ] && [ ! -L "$CSTRIKE/dlls/cs.so" ]; then
+    # Real CS DLL: back it up as cs_real.so (SteamCMD restores cs.so every start)
+    cp -f "$CSTRIKE/dlls/cs.so" "$CSTRIKE/dlls/cs_real.so"
+    # Install Metamod-P as cs.so so HLDS loads it via the working vanilla path
+    cp -f "$METAMOD_SO" "$CSTRIKE/dlls/cs.so"
 fi
 
 # ─── Ensure both AMX and PODBot (if present) are always in plugins.ini ────────
 {
     echo "linux addons/amxmodx/dlls/amxmodx_mm_i386.so"
     [ -f "$CSTRIKE/addons/podbot/podbot_mm.so" ] && echo "linux addons/podbot/podbot_mm.so"
-} > "$CSTRIKE/addons/metamod/plugins.ini"
+} > "$METAMOD_DIR/plugins.ini"
+
+# ─── Tell Metamod-P where the real game DLL is ────────────────────────────────
+# Use absolute path so Metamod-P never mis-resolves it
+echo "$CSTRIKE/dlls/cs_real.so" > "$METAMOD_DIR/metamod.ini"
+# mp.so symlink covers Metamod's old "dlls/mp.so" fallback for Windows-named DLL
+ln -sf cs_real.so "$CSTRIKE/dlls/mp.so" 2>/dev/null || true
 
 # ─── PODBot mm V3B24 (install once into the volume) ──────────────────────────
 PODBOT_SO="$CSTRIKE/addons/podbot/podbot_mm.so"
@@ -192,6 +215,15 @@ sys_ticrate     1000
 log             on
 EOF
 
+# ─── Pre-launch diagnostics ───────────────────────────────────────────────────
+echo ">>> PRE-LAUNCH CHECK:"
+echo "    gamedll_linux line in liblist.gam:"
+grep 'gamedll_linux' "$CSTRIKE/liblist.gam" 2>/dev/null | cat -A || echo "    MISSING"
+echo "    cs.so (should be metamod): $(ls -la $CSTRIKE/dlls/cs.so 2>/dev/null || echo MISSING)"
+echo "    cs_real.so (CS game DLL): $(ls -la $CSTRIKE/dlls/cs_real.so 2>/dev/null || echo MISSING)"
+echo "    metamod.ini: $(cat $METAMOD_DIR/metamod.ini 2>/dev/null || echo MISSING)"
+echo "    hlds_linux: $(ls -la $HLDS_DIR/hlds_linux 2>/dev/null | head -1)"
+
 # ─── Launch ───────────────────────────────────────────────────────────────────
 echo ">>> Starting CS 1.6 dedicated server (internet mode)..."
 echo "    Server:  $SERVER_NAME"
@@ -209,4 +241,3 @@ exec ./hlds_linux \
     +maxplayers "$MAXPLAYERS" \
     +hostname "$SERVER_NAME" \
     +sv_lan 0
-
