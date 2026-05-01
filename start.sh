@@ -68,6 +68,12 @@ if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
     echo ">>> AMX Mod X installed."
 fi
 
+# ─── Ensure both AMX and PODBot (if present) are always in plugins.ini ────────
+{
+    echo "linux addons/amxmodx/dlls/amxmodx_mm_i386.so"
+    [ -f "$CSTRIKE/addons/podbot/podbot_mm.so" ] && echo "linux addons/podbot/podbot_mm.so"
+} > "$CSTRIKE/addons/metamod/plugins.ini"
+
 # ─── PODBot mm V3B24 (install once into the volume) ──────────────────────────
 PODBOT_SO="$CSTRIKE/addons/podbot/podbot_mm.so"
 if [ ! -f "$PODBOT_SO" ]; then
@@ -84,11 +90,7 @@ if [ ! -f "$PODBOT_SO" ]; then
         rm -f "$CSTRIKE/addons/podbot/podbot_mm.dll"   # remove Windows DLL
 
         if [ -f "$PODBOT_SO" ]; then
-            # Register in Metamod
-            if ! grep -q "podbot_mm" "$CSTRIKE/addons/metamod/plugins.ini" 2>/dev/null; then
-                echo "linux addons/podbot/podbot_mm.so" >> "$CSTRIKE/addons/metamod/plugins.ini"
-            fi
-            # Override botnames with Brazilian/fun names
+            # botnames e permissões
             cat > "$CSTRIKE/addons/podbot/botnames.txt" <<'EOF'
 Pistoleiro
 Fragger
@@ -172,6 +174,11 @@ mp_autokick     1
 mp_autoteambalance 1
 mp_limitteams   2
 mp_buytime      1.5
+
+// PODBot — bots padrão (ajuste pelo painel ou edite aqui)
+pb_maxbots      5
+pb_minbotskill  40
+pb_maxbotskill  80
 
 // Performance
 fps_max         500
