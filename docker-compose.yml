@@ -1,0 +1,26 @@
+services:
+  cs16:
+    build: .
+    container_name: cs16-server
+    restart: unless-stopped
+    ports:
+      - "27015:27015/udp"
+    volumes:
+      - cs16_data:/home/steam/hlds
+    env_file: .env
+
+  panel:
+    build: ./panel
+    container_name: cs16-panel
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"   # only localhost; remove 127.0.0.1: to expose publicly
+    environment:
+      CS_HOST: cs16
+      CS_PORT: 27015
+    env_file: .env
+    depends_on:
+      - cs16
+
+volumes:
+  cs16_data:
