@@ -46,7 +46,10 @@ services:
     environment:
       CS_HOST: cs16
       CS_PORT: 27015
+      HLDS_DIR: /srv/hlds
     env_file: .env
+    volumes:
+      - cs16_data:/srv/hlds
     depends_on:
       - cs16
 

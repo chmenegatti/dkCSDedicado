@@ -27,6 +27,11 @@ echo ">>> Updating HLDS via SteamCMD..."
 mkdir -p ~/.steam/sdk32
 ln -sf "$HLDS_DIR/steamclient.so" ~/.steam/sdk32/steamclient.so 2>/dev/null || true
 
+# Allow panel container (www-data) to write mapcycle and upload maps
+mkdir -p "$CSTRIKE/maps"
+chmod 777 "$CSTRIKE/maps"
+[ -f "$CSTRIKE/mapcycle.txt" ] && chmod 666 "$CSTRIKE/mapcycle.txt" || true
+
 # ─── AMX Mod X + Metamod (install once into the volume) ───────────────────────
 if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
     echo ">>> Installing Metamod + AMX Mod X ${AMXX_VERSION}..."
