@@ -155,7 +155,7 @@ export default function ServerTab() {
               onClick={handleChangelevel}
               className="w-full py-2.5 rounded-md bg-gradient-primary text-primary-foreground text-sm font-mono font-semibold hover:shadow-glow transition-all"
             >
-              changelevel
+              Mudar Mapa
             </button>
           </div>
         </section>
@@ -166,7 +166,7 @@ export default function ServerTab() {
             <Zap className="h-3.5 w-3.5 text-primary" />
             Ações Rápidas
           </div>
-          <div className="p-4 grid grid-cols-2 gap-2">
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
             <QuickAction icon={RotateCw} label="Reiniciar Round" onClick={() => runRcon('mp_restartgame 1')} />
             <QuickAction icon={Activity} label="Status" onClick={() => runRcon('status')} />
             <QuickAction icon={Shield} label="Cheats ON" variant="success" onClick={() => runRcon('sv_cheats 1')} />
