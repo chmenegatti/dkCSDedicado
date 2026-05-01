@@ -131,7 +131,8 @@ echo ">>> Starting CS 1.6 dedicated server (internet mode)..."
 echo "    Server:  $SERVER_NAME"
 echo "    Map:     $MAP | Slots: $MAXPLAYERS | Region: $SERVER_REGION"
 
-exec "$HLDS_DIR/hlds_linux" \
+cd "$HLDS_DIR"
+exec ./hlds_linux \
     -game cstrike \
     -console \
     -norestart \
