@@ -27,7 +27,8 @@ echo ">>> Updating HLDS via SteamCMD..."
 mkdir -p ~/.steam/sdk32
 ln -sf "$HLDS_DIR/steamclient.so" ~/.steam/sdk32/steamclient.so 2>/dev/null || true
 
-# Allow panel container (www-data) to write maps uploads
+# Allow panel container (www-data) to write into volume directories
+chmod 777 "$CSTRIKE"                                                            # mapcycle.txt, tmp files
 mkdir -p "$CSTRIKE/maps"
 chmod 777 "$CSTRIKE/maps"
 [ -d "$CSTRIKE/addons/podbot" ] && chmod 777 "$CSTRIKE/addons/podbot" || true
