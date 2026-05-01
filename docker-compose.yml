@@ -59,7 +59,7 @@ services:
     container_name: cs16-frontend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:80"
+      - "3000:80"   # acessível na rede local (sem 127.0.0.1:)
     depends_on:
       - panel
 
