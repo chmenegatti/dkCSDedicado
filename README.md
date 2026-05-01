@@ -120,24 +120,40 @@ POLL_INTERVAL=15                   # segundos entre verificações
 
 ---
 
-### 3️⃣ Configure o ZeroTier
+### 3️⃣ Configure o ZeroTier (Self-Hosted)
 
-#### 3a. Crie uma rede
+O servidor cria e gerencia sua **própria rede ZeroTier** — sem conta, sem token de API.
 
-1. Acesse [my.zerotier.com](https://my.zerotier.com) e faça login
-2. Clique em **"Create A Network"**
-3. Copie o **Network ID** (ex: `ab1234567890abcd`)
-4. Cole em `ZEROTIER_NETWORK_ID=` no seu `.env`
+> 🎉 **Não é necessária conta no ZeroTier Central.** O controller roda localmente no próprio container.
 
-#### 3b. Gere um token de API
+#### 3a. Suba os containers
+```bash
+docker compose up -d --build
+```
 
-1. Acesse **Account → API Access Tokens**
-2. Clique em **"New Token"**, dê um nome (ex: `dkCSDedicado`)
-3. Copie o token gerado
-4. Cole em `ZEROTIER_API_TOKEN=` no seu `.env`
+#### 3b. Descubra o Network ID gerado automaticamente
+```bash
+./scripts/zt-info.sh
+```
 
-> O token permite que o container `zt-auth` autorize automaticamente  
-> novos membros que entrarem na rede.
+Saída esperada:
+```
+=== ZeroTier Self-Hosted Controller ===
+
+  Node ID    : a1b2c3d4e5
+  Network ID : a1b2c3d4e5000001
+
+=== IP ZeroTier do Servidor ===
+
+  ✅  10.144.0.1
+
+  Compartilhe com seus amigos:
+    1) Entrar na rede : zerotier-cli join a1b2c3d4e5000001
+    2) Conectar no CS : connect 10.144.0.1:27015
+```
+
+> O Network ID é gerado **uma única vez** e persiste no volume `zerotier_data`.  
+> Se você apagar o volume, um novo ID será gerado.
 
 ---
 
@@ -150,12 +166,12 @@ docker compose up -d --build
 Na **primeira execução**, o processo leva alguns minutos:
 
 ```
-zerotier  ✅  conecta à rede ZeroTier
+zerotier  ✅  inicia o daemon ZeroTier
+zt-auth   ✅  cria a rede privada e começa a autorizar novos membros
 cs16      ⏳  baixa HLDS via SteamCMD (~1 GB)
 cs16      ⏳  instala AMX Mod X + Metamod
 cs16      ✅  inicia o servidor
 panel     ✅  painel disponível em http://localhost:8080
-zt-auth   ✅  monitorando novos membros a cada 15s
 ```
 
 Acompanhe o progresso:
@@ -168,7 +184,7 @@ docker compose logs -f cs16
 
 ### 5️⃣ Descubra o IP ZeroTier do servidor
 
-Após o ZeroTier conectar, rode:
+Após o `zt-auth` criar a rede (alguns segundos), rode:
 
 ```bash
 ./scripts/zt-info.sh
@@ -223,9 +239,7 @@ Cada amigo precisa:
 | `PANEL_PASSWORD` | `admin` | Senha de login do painel web |
 | `ADMIN_PASSWORD` | *(vazio)* | Senha para virar admin via AMX Mod X |
 | `SERVER_REGION` | `2` | Região: `2`=América do Sul, `3`=Europa, `255`=Mundo |
-| `ZEROTIER_NETWORK_ID` | *(vazio)* | ID da rede ZeroTier (16 caracteres hex) |
-| `ZEROTIER_API_TOKEN` | *(vazio)* | Token de API do ZeroTier Central |
-| `POLL_INTERVAL` | `15` | Segundos entre verificações de novos membros |
+| `POLL_INTERVAL` | `15` | Segundos entre verificações de novos membros ZeroTier |
 
 ---
 
@@ -365,12 +379,21 @@ docker compose logs cs16 | grep "sv_lan"
 <summary><strong>❌ Amigo não consegue entrar na rede ZeroTier</strong></summary>
 
 ```bash
-# Veja se o zt-auth está autorizando
+# Veja se o zt-auth está autorizando automaticamente
 docker compose logs zt-auth
 
-# Verifique o Node ID do amigo
-# No PC do amigo: zerotier-cli status
-# Depois autorize manualmente em: my.zerotier.com → Network → Members
+# Descubra o Network ID correto
+./scripts/zt-info.sh
+
+# O amigo precisa rodar (substitua pelo Network ID real):
+# zerotier-cli join a1b2c3d4e5000001
+
+# Para autorizar manualmente via API local:
+TOKEN=$(docker exec zerotier cat /var/lib/zerotier-one/authtoken.secret)
+NODE_ID=$(docker exec zerotier cat /var/lib/zerotier-one/identity.public | cut -d: -f1)
+curl -X POST -H "X-ZT1-AUTH: $TOKEN" \
+  -d '{"authorized":true}' \
+  http://localhost:9993/controller/network/${NODE_ID}000001/member/<NODE_DO_AMIGO>
 ```
 </details>
 

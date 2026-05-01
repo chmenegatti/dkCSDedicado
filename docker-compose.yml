@@ -11,16 +11,15 @@ services:
       - /dev/net/tun:/dev/net/tun
     volumes:
       - zerotier_data:/var/lib/zerotier-one
-    environment:
-      NETWORK_ID: ${ZEROTIER_NETWORK_ID}
 
   zt-auth:
     build: ./zt-auth
     container_name: zt-auth
     restart: unless-stopped
+    network_mode: host          # acessa a API local do controller em localhost:9993
+    volumes:
+      - zerotier_data:/var/lib/zerotier-one:ro  # leitura do token e identity
     environment:
-      ZEROTIER_API_TOKEN: ${ZEROTIER_API_TOKEN}
-      ZEROTIER_NETWORK_ID: ${ZEROTIER_NETWORK_ID}
       POLL_INTERVAL: ${POLL_INTERVAL:-15}
     depends_on:
       - zerotier
