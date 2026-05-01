@@ -223,9 +223,10 @@ if ($auth && isset($_GET['api'])) {
         case 'bots_kickall':
             if (!$isPost) { http_response_code(405); break; }
             $rcon = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
+            $rcon->execute("pb_minbots 0");
             $rcon->execute("pb_maxbots 0");
-            $r = $rcon->execute("pb removebots");
-            echo json_encode(['success'=>true,'output'=>'Bots removidos do servidor.']); break;
+            $rcon->execute("pb removebots");
+            echo json_encode(['success'=>true,'output'=>'Bots desativados e removidos do servidor.']); break;
 
         case 'settings_get':
             $keys = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
@@ -524,7 +525,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn green" onclick="applyBots()" style="flex:1">✔ Aplicar</button>
-        <button class="btn" onclick="kickAllBots()" style="color:#e87070;border-color:#5c1a1a;background:#1a0808">✕ Remover Todos</button>
+        <button id="btn-disable-bots" class="btn" onclick="disableBots()" style="color:#e87070;border-color:#5c1a1a;background:#1a0808">⏹ Desativar Bots</button>
       </div>
       <div style="color:#444;font-size:11px;margin-top:10px;line-height:1.6">
         Requer <strong style="color:#666">PODBot mm</strong> instalado no servidor.<br>
@@ -857,6 +858,13 @@ async function kickAllBots() {
     msg.textContent = d.success ? '✔ ' + d.output : '⚠️ ' + (d.error||d.output);
     msg.className = 'cfg-msg ' + (d.success ? 'ok' : 'err');
   } catch(e) { msg.textContent = '⚠️ Erro de comunicação'; msg.className = 'cfg-msg err'; }
+}
+
+async function disableBots() {
+  const slider = document.getElementById('rng-quota');
+  slider.value = 0;
+  document.getElementById('val-quota').textContent = '0';
+  await kickAllBots();
 }
 
 async function loadBotnames() {
