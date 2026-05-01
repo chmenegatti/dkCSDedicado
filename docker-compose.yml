@@ -14,6 +14,17 @@ services:
     environment:
       NETWORK_ID: ${ZEROTIER_NETWORK_ID}
 
+  zt-auth:
+    build: ./zt-auth
+    container_name: zt-auth
+    restart: unless-stopped
+    environment:
+      ZEROTIER_API_TOKEN: ${ZEROTIER_API_TOKEN}
+      ZEROTIER_NETWORK_ID: ${ZEROTIER_NETWORK_ID}
+      POLL_INTERVAL: ${POLL_INTERVAL:-15}
+    depends_on:
+      - zerotier
+
   cs16:
     build: .
     container_name: cs16-server
@@ -42,3 +53,4 @@ services:
 volumes:
   cs16_data:
   zerotier_data:
+
