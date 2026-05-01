@@ -12,8 +12,6 @@ SERVER_REGION="${SERVER_REGION:-2}"   # 2 = South America
 
 HLDS_DIR="/home/steam/hlds"
 CSTRIKE="$HLDS_DIR/cstrike"
-AMXX_VERSION="1.10.0.5467"
-AMXX_BASE_URL="https://www.amxmodx.org/amxxdrop/1.10.0"
 
 # ─── SteamCMD update ──────────────────────────────────────────────────────────
 echo ">>> Updating HLDS via SteamCMD..."
@@ -34,12 +32,25 @@ chmod 777 "$CSTRIKE/maps"
 
 # ─── AMX Mod X + Metamod (install once into the volume) ───────────────────────
 if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
-    echo ">>> Installing Metamod + AMX Mod X ${AMXX_VERSION}..."
+    echo ">>> Installing Metamod + AMX Mod X (latest from GitHub)..."
     mkdir -p "$CSTRIKE"
 
-    curl -fsSL "${AMXX_BASE_URL}/amxmodx-${AMXX_VERSION}-base-linux.tar.gz" \
+    # Fetch latest release tag from GitHub (e.g. "1.10.0.5476")
+    AMXX_TAG=$(curl -sf https://api.github.com/repos/alliedmodders/amxmodx/releases/latest \
+        | grep '"tag_name"' | head -1 \
+        | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+    if [ -z "$AMXX_TAG" ]; then
+        AMXX_TAG="1.10.0.5476"   # fallback
+        echo ">>> GitHub API unavailable, using fallback: $AMXX_TAG"
+    fi
+    AMXX_VER=$(echo "$AMXX_TAG" | cut -d. -f1-3)     # 1.10.0
+    AMXX_BUILD=$(echo "$AMXX_TAG" | cut -d. -f4)     # 5476
+    AMXX_URL="https://github.com/alliedmodders/amxmodx/releases/download/${AMXX_TAG}"
+    echo ">>> AMX Mod X ${AMXX_TAG}"
+
+    curl -fsSL "${AMXX_URL}/amxmodx-${AMXX_VER}-git${AMXX_BUILD}-base-linux.tar.gz" \
         | tar -xz -C "$CSTRIKE"
-    curl -fsSL "${AMXX_BASE_URL}/amxmodx-${AMXX_VERSION}-cstrike-linux.tar.gz" \
+    curl -fsSL "${AMXX_URL}/amxmodx-${AMXX_VER}-git${AMXX_BUILD}-cstrike-linux.tar.gz" \
         | tar -xz -C "$CSTRIKE"
 
     # Hook Metamod into HLDS (replaces the game DLL entry in liblist.gam)
