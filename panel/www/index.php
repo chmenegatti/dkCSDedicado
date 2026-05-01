@@ -11,7 +11,7 @@ $CSTRIKE        = "$HLDS_DIR/cstrike";
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 $auth = !$PANEL_PASSWORD || ($_SESSION['auth'] ?? false);
 if (!$auth && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
-    if (hash_equals($PANEL_PASSWORD, $_POST['password'])) { $_SESSION['auth'] = true; $auth = true; }
+    if (hash_equals(trim($PANEL_PASSWORD), trim($_POST['password']))) { $_SESSION['auth'] = true; $auth = true; }
     else $loginError = 'Senha incorreta';
 }
 if (isset($_GET['logout'])) { session_destroy(); header('Location: /'); exit; }
