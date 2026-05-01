@@ -669,18 +669,18 @@ function setUploadMsg(msg, color) {
 // ─── Settings tab ─────────────────────────────────────────────────────────────
 const SETTINGS = [
   { section:'⏱ Partida', items:[
-    { key:'mp_timelimit',  label:'Duração da Partida',    unit:'min', min:0,  max:60,    step:1,    def:25,   hint:'0 = sem limite de tempo' },
+    { key:'mp_timelimit',  label:'Duração da Partida',    unit:'min', min:0,  max:60,    step:1,    def:30,   hint:'0 = sem limite de tempo' },
     { key:'mp_maxrounds',  label:'Máx. Rounds por Mapa',  unit:'',    min:0,  max:30,    step:1,    def:0,    hint:'0 = sem limite de rounds' },
     { key:'mp_winlimit',   label:'Vitórias para Trocar',   unit:'',    min:0,  max:20,    step:1,    def:0,    hint:'0 = desativado' },
   ]},
   { section:'🔄 Rounds', items:[
-    { key:'mp_roundtime',  label:'Tempo do Round',         unit:'min', min:1,  max:5,     step:0.5,  def:2,    nextRound:true },
+    { key:'mp_roundtime',  label:'Tempo do Round',         unit:'min', min:1,  max:5,     step:0.5,  def:5,    nextRound:true },
     { key:'mp_freezetime', label:'Freeze Time',            unit:'seg', min:0,  max:30,    step:1,    def:6,    nextRound:true },
-    { key:'mp_buytime',    label:'Tempo de Compra',        unit:'min', min:0,  max:2,     step:0.25, def:0.25, nextRound:true },
+    { key:'mp_buytime',    label:'Tempo de Compra',        unit:'min', min:0,  max:2,     step:0.25, def:1.5,  nextRound:true },
     { key:'mp_c4timer',    label:'Timer da C4',            unit:'seg', min:10, max:90,    step:1,    def:35,   nextRound:true },
   ]},
   { section:'👥 Jogadores', items:[
-    { key:'mp_startmoney',      label:'Dinheiro Inicial',         unit:'$',  min:800, max:16000, step:200, def:800,  nextRound:true },
+    { key:'mp_startmoney',      label:'Dinheiro Inicial',         unit:'$',  min:800, max:16000, step:200, def:1800, nextRound:true },
     { key:'mp_limitteams',      label:'Desequilíbrio Máx.',       unit:'',   min:0,   max:5,     step:1,   def:2,    hint:'Diferença tolerada entre times (0 = desativado)' },
     { key:'mp_friendlyfire',    label:'Fogo Amigo',    toggle:true, def:0,    nextRound:true },
     { key:'mp_autoteambalance', label:'Balance Automático',       toggle:true, def:1 },

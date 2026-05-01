@@ -110,15 +110,16 @@ sv_maxupdaterate 60
 sv_minupdaterate 20
 
 // Gameplay
-mp_timelimit    25
+mp_timelimit    30
 mp_freezetime   6
-mp_roundtime    2
+mp_roundtime    5
 mp_c4timer      35
+mp_startmoney   1800
 mp_friendlyfire 0
 mp_autokick     1
 mp_autoteambalance 1
 mp_limitteams   2
-mp_buytime      0.25
+mp_buytime      1.5
 
 // Performance
 fps_max         500
