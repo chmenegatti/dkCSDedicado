@@ -36,7 +36,13 @@ class ServerQuery extends UdpClient {
     public function getInfo(): ?array {
         try {
             $this->send("\xFF\xFF\xFF\xFF\x54Source Engine Query\x00");
-            $r = $this->recv(); if (strlen($r) < 6 || $r[4] !== "\x49") return null;
+            $r = $this->recv();
+            // Newer HLDS versions require a challenge (same pattern as A2S_PLAYER)
+            if (strlen($r) >= 9 && $r[4] === "\x41") {
+                $this->send("\xFF\xFF\xFF\xFF\x54Source Engine Query\x00" . substr($r, 5, 4));
+                $r = $this->recv();
+            }
+            if (strlen($r) < 6 || $r[4] !== "\x49") return null;
             $p = 5; $p++;
             $name = $this->rStr($r,$p); $map = $this->rStr($r,$p);
             $this->rStr($r,$p); $this->rStr($r,$p); $p += 2;
@@ -99,6 +105,8 @@ function mapExists(string $name, string $cstrike): bool {
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 if ($auth && isset($_GET['api'])) {
+    error_reporting(0);          // evita warnings de socket vazarem no JSON
+    ini_set('display_errors', 0);
     header('Content-Type: application/json');
     $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 
@@ -115,13 +123,18 @@ if ($auth && isset($_GET['api'])) {
                                   : ['success'=>false,'output'=>'Comando vazio.']); break;
 
         case 'changelevel':
-            if (!$isPost) { http_response_code(405); break; }
+            if (!$isPost) { http_response_code(405); echo json_encode(['error'=>'Method not allowed']); break; }
             $map = trim($_POST['map'] ?? '');
             if (!isValidMapName($map)) { echo json_encode(['success'=>false,'output'=>'Nome de mapa inválido.']); break; }
             if (is_dir("$CSTRIKE/maps") && !mapExists($map,$CSTRIKE)) {
                 echo json_encode(['success'=>false,'output'=>"Mapa '$map' não encontrado no servidor."]); break;
             }
-            echo json_encode((new Rcon($CS_HOST,$CS_PORT,$RCON_PASSWORD))->execute("changelevel $map")); break;
+            $res = (new Rcon($CS_HOST,$CS_PORT,$RCON_PASSWORD))->execute("changelevel $map");
+            // changelevel não retorna output — qualquer resposta bem-formada é sucesso
+            if ($res['success'] || $res['output'] === '(sem output)') {
+                $res = ['success'=>true,'output'=>"Trocando para $map..."];
+            }
+            echo json_encode($res); break;
 
         case 'maps_list':
             echo json_encode(installedMaps($CSTRIKE)); break;
