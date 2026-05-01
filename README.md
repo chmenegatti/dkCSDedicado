@@ -10,9 +10,11 @@
 ```
 
 **Servidor dedicado de Counter-Strike 1.6 containerizado com Docker**  
-*Rede privada via ZeroTier · Painel web de administração · AMX Mod X + PODBot inclusos*
+*Rede privada via ZeroTier · Painel React mobile-first · AMX Mod X + PODBot inclusos*
 
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![React](https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![PHP](https://img.shields.io/badge/PHP_8.2-777BB4?style=flat-square&logo=php&logoColor=white)
 ![ZeroTier](https://img.shields.io/badge/ZeroTier-FFB71B?style=flat-square&logo=zerotier&logoColor=black)
 ![CS 1.6](https://img.shields.io/badge/Counter--Strike_1.6-F4A900?style=flat-square&logo=steam&logoColor=white)
@@ -28,7 +30,9 @@
 | 🎮 **Servidor HLDS completo** | Counter-Strike 1.6 via SteamCMD, atualização automática a cada início |
 | 🌐 **Rede privada ZeroTier** | Jogue com amigos pela internet sem abrir portas no roteador |
 | 🤖 **Autorização automática** | Novos membros ZeroTier são aprovados automaticamente sem conta externa |
-| 🖥️ **Painel web** | Console RCON, jogadores, mapas, bots e configurações em tempo real |
+| 🖥️ **Painel React mobile-first** | SPA moderno com login, status, RCON, mapas, bots e configurações em tempo real |
+| 📱 **Acesso via celular** | Painel responsivo, acessível de qualquer dispositivo na rede local |
+| 🔌 **API JSON** | Backend PHP puro exposto como API REST consumida pelo frontend React |
 | 🗺️ **Gestão de mapas** | Upload de `.bsp`, edição da rotação e troca imediata de mapa |
 | 🛡️ **AMX Mod X** | Plugin framework instalado automaticamente, admin in-game via chat |
 | 🤖 **PODBot mm** | Bots de IA configuráveis pelo painel (quota, skill, nomes) |
@@ -40,36 +44,35 @@
 ## 🏗️ Arquitetura
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       Docker Compose                         │
-│                                                              │
-│  ┌────────────┐   ┌──────────────────┐   ┌───────────────┐  │
-│  │  zerotier  │   │      cs16        │   │     panel     │  │
-│  │            │   │                  │   │               │  │
-│  │ ZeroTier   │   │ HLDS (build 2024)│   │ PHP 8.2 Apache│  │
-│  │ daemon +   │   │ Metamod-P 1.21   │   │ :8080         │  │
-│  │ controller │   │ AMX Mod X 1.10   │   │               │  │
-│  │ mode: host │   │ PODBot mm V3B24  │   │               │  │
-│  │            │   │ UDP :27015       │   │               │  │
-│  └─────┬──────┘   └────────┬─────────┘   └───────┬───────┘  │
-│        │  zerotier_data    │                      │          │
-│  ┌─────┴──────┐            └──────────────────────┘          │
-│  │  zt-auth   │                     │ cs16_data (volume)     │
-│  │            │            ┌────────┴──────────────────────┐ │
-│  │ Alpine     │            │  /home/steam/hlds/cstrike/    │ │
-│  │ curl + jq  │            │   dlls/cs.so  ← Metamod-P     │ │
-│  │ auto-auth  │            │   dlls/cs_real.so ← CS DLL    │ │
-│  │ loop 15s   │            │   addons/amxmodx/             │ │
-│  └────────────┘            │   addons/podbot/              │ │
-│                            │   maps/*.bsp                  │ │
-│                            │   mapcycle.txt / server.cfg   │ │
-│                            └───────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Docker Compose                               │
+│                                                                      │
+│  ┌────────────┐  ┌──────────────────┐  ┌────────────┐  ┌─────────┐ │
+│  │  zerotier  │  │      cs16        │  │   panel    │  │frontend │ │
+│  │            │  │                  │  │            │  │         │ │
+│  │ ZeroTier   │  │ HLDS (build 2024)│  │ PHP 8.2    │  │React 18 │ │
+│  │ daemon +   │  │ Metamod-P 1.21   │  │ Apache     │  │ Vite +  │ │
+│  │ controller │  │ AMX Mod X 1.10   │  │ JSON API   │  │ Nginx   │ │
+│  │ mode: host │  │ PODBot mm V3B24  │  │ :8080      │  │ :3000   │ │
+│  │            │  │ UDP :27015       │  │            │  │         │ │
+│  └─────┬──────┘  └────────┬─────────┘  └─────┬──────┘  └────┬────┘ │
+│        │ zerotier_data    │                   │  /api proxy  │      │
+│  ┌─────┴──────┐           └───────────────────┘              │      │
+│  │  zt-auth   │                    │                          │      │
+│  │            │           cs16_data (volume)      Browser /  │      │
+│  │ Alpine     │    ┌──────────────────────────┐  celular ────┘      │
+│  │ curl + jq  │    │ /home/steam/hlds/cstrike/ │                    │
+│  │ auto-auth  │    │  dlls/cs.so  ← Metamod-P  │                    │
+│  │ loop 15s   │    │  dlls/cs_real.so ← CS DLL │                    │
+│  └────────────┘    │  addons/amxmodx/          │                    │
+│                    │  addons/podbot/            │                    │
+│                    │  maps/*.bsp                │                    │
+│                    └──────────────────────────┘                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-> **Como o Metamod-P é carregado:** o HLDS 2024 só resolve game DLLs pelo
-> caminho `dlls/cs.so`. O `start.sh` instala o Metamod-P nesse caminho e
-> preserva o CS DLL original em `dlls/cs_real.so`.
+> **Frontend → API:** o container `frontend` (Nginx) serve o React SPA e faz proxy reverso de `/api/` → `http://panel/` via rede interna Docker.  
+> **Como o Metamod-P é carregado:** o HLDS 2024 só resolve game DLLs pelo caminho `dlls/cs.so`. O `start.sh` instala o Metamod-P nesse caminho e preserva o CS DLL original em `dlls/cs_real.so`.
 
 ---
 
@@ -135,7 +138,8 @@ zt-auth   ✅  cria a rede privada e começa a autorizar novos membros
 cs16      ⏳  baixa HLDS via SteamCMD (~1 GB) ...
 cs16      ⏳  instala Metamod-P + AMX Mod X + PODBot ...
 cs16      ✅  inicia o servidor CS 1.6
-panel     ✅  painel disponível em http://localhost:8080
+panel     ✅  API JSON disponível em http://localhost:8080
+frontend  ✅  painel React disponível em http://localhost:3000
 ```
 
 Acompanhe o progresso:
@@ -210,11 +214,21 @@ Cada amigo precisa:
 
 ## 🖥️ Painel de Administração
 
-Acesse em: **[http://localhost:8080](http://localhost:8080)**
+O painel é uma SPA React (TypeScript + Vite + Tailwind + shadcn/ui) servida pelo container `frontend`.  
+O backend PHP (`panel`) expõe uma **API JSON pura** consumida pelo frontend.
 
-> Por padrão, o painel só é acessível da própria máquina (`127.0.0.1`).  
-> Para expor na rede local, edite `docker-compose.yml`:  
-> `"127.0.0.1:8080:80"` → `"8080:80"`
+| URL | Descrição |
+|---|---|
+| **http://localhost:3000** | Painel React — acesso pelo navegador ou celular |
+| **http://\<ip-local\>:3000** | Acesso de qualquer dispositivo na rede local |
+| **http://localhost:8080** | API JSON (uso interno; autenticação via header `X-Panel-Password`) |
+
+> A porta `3000` já está vinculada a `0.0.0.0`, então é acessível de celulares e outros dispositivos na mesma rede sem configuração adicional.
+
+### Login
+
+Ao abrir o painel, será solicitada a senha configurada em `PANEL_PASSWORD` no `.env`.  
+A senha fica salva no `localStorage` do navegador — sem necessidade de relogar a cada visita.
 
 ### Aba Servidor
 
@@ -300,10 +314,14 @@ docker compose up -d
 # Ver logs em tempo real
 docker compose logs -f cs16      # servidor CS
 docker compose logs -f zt-auth   # autorizações ZeroTier
-docker compose logs -f panel     # painel web
+docker compose logs -f panel     # API PHP
+docker compose logs -f frontend  # painel React (Nginx)
 
 # Reiniciar apenas o servidor CS
 docker compose restart cs16
+
+# Rebuildar apenas o frontend (após mudanças no React)
+docker compose up -d --build frontend
 
 # Parar tudo (mantém volumes)
 docker compose down
@@ -332,15 +350,29 @@ docker compose restart cs16
 ```
 dkCSDedicado/
 ├── 📄 Dockerfile              # Imagem do servidor (Ubuntu 22.04 + 32-bit libs + SteamCMD)
-├── 📄 docker-compose.yml      # Orquestração dos 4 serviços
+├── 📄 docker-compose.yml      # Orquestração dos 5 serviços
 ├── 📄 start.sh                # Entrypoint: SteamCMD → Metamod-P → AMX → PODBot → server.cfg → HLDS
 ├── 📄 .env                    # ⚠️ Suas configurações (não commitar!)
 ├── 📄 .env.example            # Template de configuração
 │
-├── 📁 panel/                  # Painel web de administração
+├── 📁 front-end/              # Painel de administração React (SPA)
+│   ├── 📄 Dockerfile          # Multi-stage: node:22-alpine (build) + nginx:alpine (serve)
+│   ├── 📄 nginx.conf          # SPA routing + proxy /api/ → http://panel/
+│   ├── 📄 vite.config.ts      # Dev proxy /api → http://localhost:8080
+│   └── 📁 src/
+│       ├── 📄 lib/api.ts      # Cliente API tipado (TypeScript)
+│       ├── 📄 pages/Login.tsx # Tela de login
+│       ├── 📄 pages/Index.tsx # Shell principal com tabs
+│       └── 📁 components/admin/
+│           ├── ServerTab.tsx  # Status, jogadores, RCON, ações rápidas
+│           ├── MapsTab.tsx    # Listagem, rotação, upload de mapas
+│           ├── BotsTab.tsx    # Quota, skill e nomes dos bots
+│           └── ConfigTab.tsx  # Configurações da partida
+│
+├── 📁 panel/                  # Backend API JSON
 │   ├── 📄 Dockerfile          # php:8.2-apache
 │   └── 📁 www/
-│       └── 📄 index.php       # Painel completo (auth, RCON, mapas, bots, upload)
+│       └── 📄 index.php       # API REST pura (auth via X-Panel-Password header)
 │
 ├── 📁 zt-auth/                # Serviço de autorização automática ZeroTier
 │   ├── 📄 Dockerfile          # Alpine + curl + jq
@@ -356,6 +388,14 @@ dkCSDedicado/
 |---|---|---|
 | `cs16_data` | `/home/steam/hlds` (cs16) · `/srv/hlds` (panel) | Todos os arquivos do HLDS, mapas, configs, addons |
 | `zerotier_data` | `/var/lib/zerotier-one` (zerotier + zt-auth) | Identidade e chaves ZeroTier (persistem o Network ID) |
+
+### Portas Expostas
+
+| Porta | Protocolo | Serviço | Descrição |
+|---|---|---|---|
+| `27015` | UDP | cs16 | Porta do jogo (CS 1.6) |
+| `8080` | TCP | panel | API JSON (localhost apenas) |
+| `3000` | TCP | frontend | Painel React (rede local) |
 
 ---
 
@@ -438,8 +478,12 @@ Isso já é feito automaticamente pelo `start.sh` a cada reinício.
 ```bash
 docker compose ps          # todos os containers devem estar "Up"
 docker compose logs panel  # veja erros do Apache/PHP
-curl -I http://localhost:8080
+docker compose logs frontend  # veja erros do Nginx
+curl -I http://localhost:3000   # painel React
+curl -I http://localhost:8080   # API PHP
 ```
+
+Certifique-se de acessar a porta **3000** (frontend React), não a 8080 (API interna).
 </details>
 
 <details>
@@ -489,8 +533,12 @@ Para o servidor ser acessível diretamente pela internet:
 | **AMX Mod X** | Última versão estável do [GitHub AlliedModders](https://github.com/alliedmodders/amxmodx) |
 | **PODBot** | [V3B24-APG](https://github.com/APGRoboCop/podbot_mm) — bot de IA clássico do CS 1.6 |
 | **ZeroTier** | Controller self-hosted — rede `10.144.0.0/24`, sem conta externa necessária |
+| **Frontend** | React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + React Query |
+| **Backend** | PHP 8.2 API JSON pura — auth via header `X-Panel-Password` |
+| **Servidor de arquivos** | Nginx (Alpine) servindo o build React + proxy reverso para a API |
 | **Porta do jogo** | UDP `27015` |
-| **Painel** | `127.0.0.1:8080` (apenas localhost por padrão) |
+| **Porta do painel** | TCP `3000` (frontend React, exposta na rede local) |
+| **Porta da API** | TCP `8080` (apenas localhost por padrão) |
 
 ---
 
