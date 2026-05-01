@@ -205,18 +205,25 @@ if ($auth && isset($_GET['api'])) {
             $allowed = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
                         'mp_startmoney','mp_c4timer','mp_friendlyfire','mp_autoteambalance',
                         'mp_limitteams','mp_autokick','mp_maxrounds','mp_winlimit'];
-            $parts = [];
+            $rcon   = new Rcon($CS_HOST, $CS_PORT, $RCON_PASSWORD);
+            $failed = [];
+            $count  = 0;
             foreach ($allowed as $k) {
                 if (isset($_POST[$k]) && is_numeric($_POST[$k])) {
-                    $parts[] = "$k " . floatval($_POST[$k]);
+                    $res = $rcon->execute("$k " . floatval($_POST[$k]));
+                    if (!$res['success']) $failed[] = $k;
+                    else $count++;
                 }
             }
-            if (empty($parts)) { echo json_encode(['success'=>false,'output'=>'Nenhuma configuração enviada.']); break; }
-            $res = (new Rcon($CS_HOST,$CS_PORT,$RCON_PASSWORD))->execute(implode(';', $parts));
-            if ($res['success'] || $res['output'] === '(sem output)') {
-                $res = ['success'=>true,'output'=>'Configurações aplicadas!'];
+            if ($count === 0 && empty($failed)) {
+                echo json_encode(['success'=>false,'output'=>'Nenhuma configuração enviada.']); break;
             }
-            echo json_encode($res); break;
+            if (empty($failed)) {
+                echo json_encode(['success'=>true,'output'=>"$count configuração(ões) aplicada(s)."]);
+            } else {
+                echo json_encode(['success'=>false,'output'=>'Falha em: '.implode(', ',$failed).'. Servidor offline ou RCON incorreto.']);
+            }
+            break;
 
         default: http_response_code(404); echo json_encode(['error'=>'Not found']);
     }
@@ -667,15 +674,15 @@ const SETTINGS = [
     { key:'mp_winlimit',   label:'Vitórias para Trocar',   unit:'',    min:0,  max:20,    step:1,    def:0,    hint:'0 = desativado' },
   ]},
   { section:'🔄 Rounds', items:[
-    { key:'mp_roundtime',  label:'Tempo do Round',         unit:'min', min:1,  max:5,     step:0.5,  def:2 },
-    { key:'mp_freezetime', label:'Freeze Time',            unit:'seg', min:0,  max:30,    step:1,    def:6 },
-    { key:'mp_buytime',    label:'Tempo de Compra',        unit:'min', min:0,  max:2,     step:0.25, def:0.25 },
-    { key:'mp_c4timer',    label:'Timer da C4',            unit:'seg', min:10, max:90,    step:1,    def:35 },
+    { key:'mp_roundtime',  label:'Tempo do Round',         unit:'min', min:1,  max:5,     step:0.5,  def:2,    nextRound:true },
+    { key:'mp_freezetime', label:'Freeze Time',            unit:'seg', min:0,  max:30,    step:1,    def:6,    nextRound:true },
+    { key:'mp_buytime',    label:'Tempo de Compra',        unit:'min', min:0,  max:2,     step:0.25, def:0.25, nextRound:true },
+    { key:'mp_c4timer',    label:'Timer da C4',            unit:'seg', min:10, max:90,    step:1,    def:35,   nextRound:true },
   ]},
   { section:'👥 Jogadores', items:[
-    { key:'mp_startmoney',      label:'Dinheiro Inicial',         unit:'$',  min:800, max:16000, step:200, def:800 },
-    { key:'mp_limitteams',      label:'Desequilíbrio Máx.',       unit:'',   min:0,   max:5,     step:1,   def:2,  hint:'Diferença tolerada entre times (0 = desativado)' },
-    { key:'mp_friendlyfire',    label:'Fogo Amigo',    toggle:true, def:0 },
+    { key:'mp_startmoney',      label:'Dinheiro Inicial',         unit:'$',  min:800, max:16000, step:200, def:800,  nextRound:true },
+    { key:'mp_limitteams',      label:'Desequilíbrio Máx.',       unit:'',   min:0,   max:5,     step:1,   def:2,    hint:'Diferença tolerada entre times (0 = desativado)' },
+    { key:'mp_friendlyfire',    label:'Fogo Amigo',    toggle:true, def:0,    nextRound:true },
     { key:'mp_autoteambalance', label:'Balance Automático',       toggle:true, def:1 },
     { key:'mp_autokick',        label:'Auto Kick (idle/cheat)',   toggle:true, def:1 },
   ]},
@@ -689,15 +696,16 @@ function buildSettings() {
     card.className = 'card';
     let inner = `<h2>${sec.section}</h2>`;
     for (const s of sec.items) {
+      const nextTag = s.nextRound ? ' <span style="color:#555;font-size:10px;font-weight:normal">próx. round</span>' : '';
       if (s.toggle) {
         inner += `<div class="toggle-row">
-          <span class="cfg-label">${s.label}</span>
+          <span class="cfg-label">${s.label}${nextTag}</span>
           <button class="toggle-btn${s.def?' on':''}" id="tog_${s.key}" data-key="${s.key}" data-val="${s.def}" onclick="toggleCfg(this)">${s.def?'ON':'OFF'}</button>
         </div>`;
       } else {
         inner += `<div class="cfg-row">
           <div class="cfg-row-head">
-            <span class="cfg-label">${s.label}</span>
+            <span class="cfg-label">${s.label}${nextTag}</span>
             <span class="cfg-val" id="val_${s.key}">${s.def}${s.unit?' '+s.unit:''}</span>
           </div>
           <input type="range" id="rng_${s.key}" data-key="${s.key}" data-unit="${s.unit||''}"
@@ -745,16 +753,30 @@ async function loadSettings() {
 async function applySettings() {
   setCfgMsg('Aplicando...', '');
   const fd = new FormData();
+  let hasNextRound = false;
   for (const sec of SETTINGS) {
     for (const s of sec.items) {
       const el = s.toggle ? document.getElementById('tog_'+s.key) : document.getElementById('rng_'+s.key);
-      if (el) fd.append(s.key, s.toggle ? el.dataset.val : el.value);
+      if (el) { fd.append(s.key, s.toggle ? el.dataset.val : el.value); if (s.nextRound) hasNextRound = true; }
     }
   }
   try {
     const d = await (await fetch('?api=settings_set', {method:'POST', body:fd})).json();
-    setCfgMsg(d.success ? '✅ Configurações aplicadas!' : '❌ '+d.output, d.success?'ok':'err');
+    if (d.success) {
+      const extra = hasNextRound
+        ? ' — <a href="#" onclick="rconSilent(\'mp_restartgame 1\');return false" style="color:#e8a000">reiniciar round agora</a>'
+        : '';
+      setCfgMsg('✅ ' + d.output + extra, 'ok');
+    } else {
+      setCfgMsg('❌ ' + d.output, 'err');
+    }
   } catch(e) { setCfgMsg('❌ Falha: '+e.message, 'err'); }
+}
+
+async function rconSilent(cmd) {
+  const fd = new FormData(); fd.append('cmd', cmd);
+  await fetch('?api=rcon', {method:'POST', body:fd});
+  setCfgMsg('✅ Round reiniciado — configurações ativas!', 'ok');
 }
 
 function setCfgMsg(msg, cls) {
