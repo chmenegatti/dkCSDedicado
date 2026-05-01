@@ -1,6 +1,7 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV HOME=/home/steam
 
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
@@ -13,14 +14,13 @@ RUN dpkg --add-architecture i386 && \
 
 RUN useradd -m -s /bin/bash steam
 
-USER steam
 WORKDIR /home/steam
 
 RUN mkdir -p steamcmd && \
     curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
     | tar -xz -C steamcmd
 
-COPY --chown=steam:steam start.sh /home/steam/start.sh
+COPY start.sh /home/steam/start.sh
 RUN chmod +x /home/steam/start.sh
 
 EXPOSE 27015/udp

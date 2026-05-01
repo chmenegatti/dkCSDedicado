@@ -18,8 +18,8 @@ AMXX_BASE_URL="https://www.amxmodx.org/amxxdrop/1.10.0"
 # ─── SteamCMD update ──────────────────────────────────────────────────────────
 echo ">>> Updating HLDS via SteamCMD..."
 /home/steam/steamcmd/steamcmd.sh \
-    +login anonymous \
     +force_install_dir "$HLDS_DIR" \
+    +login anonymous \
     +app_set_config 90 mod cstrike \
     +app_update 90 validate \
     +quit
