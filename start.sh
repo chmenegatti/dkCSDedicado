@@ -68,6 +68,12 @@ if [ ! -d "$CSTRIKE/addons/amxmodx" ]; then
     echo ">>> AMX Mod X installed."
 fi
 
+# ─── Re-apply Metamod hook (SteamCMD validate resets liblist.gam every start) ─
+if [ -f "$CSTRIKE/liblist.gam" ]; then
+    sed -i 's|gamedll_linux "[^"]*"|gamedll_linux "addons/metamod/dlls/metamod.so"|' \
+        "$CSTRIKE/liblist.gam"
+fi
+
 # ─── Ensure both AMX and PODBot (if present) are always in plugins.ini ────────
 {
     echo "linux addons/amxmodx/dlls/amxmodx_mm_i386.so"
