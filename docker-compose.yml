@@ -33,6 +33,8 @@ services:
     volumes:
       - cs16_data:/home/steam/hlds
     env_file: .env
+    security_opt:
+      - seccomp:unconfined   # HLDS é 32-bit e usa socketcall(); o seccomp padrão pode bloqueá-lo
     depends_on:
       - zerotier
 

@@ -17,12 +17,23 @@ METAMOD_SO="$METAMOD_DIR/dlls/metamod_i386.so"
 
 # ─── SteamCMD update ──────────────────────────────────────────────────────────
 echo ">>> Updating HLDS via SteamCMD..."
-/home/steam/steamcmd/steamcmd.sh \
-    +force_install_dir "$HLDS_DIR" \
-    +login anonymous \
-    +app_set_config 90 mod cstrike \
-    +app_update 90 validate \
-    +quit
+if [ -f "$HLDS_DIR/hlds_linux" ]; then
+    # HLDS already installed — try to update but don't abort if Steam is unreachable
+    /home/steam/steamcmd/steamcmd.sh -tcp \
+        +force_install_dir "$HLDS_DIR" \
+        +login anonymous \
+        +app_set_config 90 mod cstrike \
+        +app_update 90 \
+        +quit || echo ">>> AVISO: SteamCMD não conseguiu conectar, usando instalação existente."
+else
+    # First run — must succeed; validate ensures a complete install
+    /home/steam/steamcmd/steamcmd.sh -tcp \
+        +force_install_dir "$HLDS_DIR" \
+        +login anonymous \
+        +app_set_config 90 mod cstrike \
+        +app_update 90 validate \
+        +quit
+fi
 
 mkdir -p ~/.steam/sdk32
 ln -sf "$HLDS_DIR/steamclient.so" ~/.steam/sdk32/steamclient.so 2>/dev/null || true
@@ -85,12 +96,35 @@ fi
 # HLDS 10211 only successfully loads from dlls/cs.so (the vanilla path).
 # Strategy: install Metamod AS dlls/cs.so; preserve real CS DLL as dlls/cs_real.so.
 # liblist.gam stays with its original "dlls/cs.so" — no sed needed.
-if [ -f "$CSTRIKE/dlls/cs.so" ] && [ ! -L "$CSTRIKE/dlls/cs.so" ]; then
-    # Real CS DLL: back it up as cs_real.so (SteamCMD restores cs.so every start)
-    cp -f "$CSTRIKE/dlls/cs.so" "$CSTRIKE/dlls/cs_real.so"
-    # Install Metamod-P as cs.so so HLDS loads it via the working vanilla path
-    cp -f "$METAMOD_SO" "$CSTRIKE/dlls/cs.so"
+#
+# Guard: use file size to detect if cs_real.so is the real CS DLL or accidentally
+# got overwritten with Metamod. The real CS DLL is ~2-4 MB; Metamod is ~200 KB.
+_METAMOD_SIZE=$(stat -c%s "$METAMOD_SO")
+_CS_REAL="$CSTRIKE/dlls/cs_real.so"
+_CS_SO="$CSTRIKE/dlls/cs.so"
+_cs_real_size=$(stat -c%s "$_CS_REAL" 2>/dev/null || echo 0)
+
+if [ "$_cs_real_size" -le "$_METAMOD_SIZE" ]; then
+    # cs_real.so is missing or is metamod — need the real CS DLL
+    _cs_so_size=$(stat -c%s "$_CS_SO" 2>/dev/null || echo 0)
+    if [ "$_cs_so_size" -gt "$_METAMOD_SIZE" ]; then
+        # cs.so is still the original CS DLL (fresh SteamCMD install)
+        echo ">>> Backing up real CS DLL as cs_real.so..."
+        cp -f "$_CS_SO" "$_CS_REAL"
+    else
+        # Both files are metamod — run SteamCMD validate to restore the real DLL
+        echo ">>> cs_real.so lost — forcing SteamCMD validate to restore real CS DLL..."
+        /home/steam/steamcmd/steamcmd.sh -tcp \
+            +force_install_dir "$HLDS_DIR" \
+            +login anonymous \
+            +app_set_config 90 mod cstrike \
+            +app_update 90 validate \
+            +quit
+        cp -f "$_CS_SO" "$_CS_REAL"
+    fi
 fi
+# Always install Metamod-P as cs.so (HLDS 10211 only loads the game DLL via this path)
+cp -f "$METAMOD_SO" "$_CS_SO"
 
 # ─── Ensure both AMX and PODBot (if present) are always in plugins.ini ────────
 {
