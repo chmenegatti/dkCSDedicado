@@ -188,6 +188,36 @@ if ($auth && isset($_GET['api'])) {
             rename($part, $dest);
             echo json_encode(['success'=>true,'name'=>basename($name,'.bsp')]); break;
 
+        case 'settings_get':
+            $keys = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
+                     'mp_startmoney','mp_c4timer','mp_friendlyfire','mp_autoteambalance',
+                     'mp_limitteams','mp_autokick','mp_maxrounds','mp_winlimit'];
+            $res = (new Rcon($CS_HOST,$CS_PORT,$RCON_PASSWORD))->execute(implode(';', $keys));
+            $vals = [];
+            if ($res['success']) {
+                preg_match_all('/"([a-z_0-9]+)" is "([^"]*)"/', $res['output'], $m, PREG_SET_ORDER);
+                foreach ($m as $match) $vals[$match[1]] = $match[2];
+            }
+            echo json_encode(['success'=>$res['success'],'values'=>$vals]); break;
+
+        case 'settings_set':
+            if (!$isPost) { http_response_code(405); break; }
+            $allowed = ['mp_timelimit','mp_roundtime','mp_freezetime','mp_buytime',
+                        'mp_startmoney','mp_c4timer','mp_friendlyfire','mp_autoteambalance',
+                        'mp_limitteams','mp_autokick','mp_maxrounds','mp_winlimit'];
+            $parts = [];
+            foreach ($allowed as $k) {
+                if (isset($_POST[$k]) && is_numeric($_POST[$k])) {
+                    $parts[] = "$k " . floatval($_POST[$k]);
+                }
+            }
+            if (empty($parts)) { echo json_encode(['success'=>false,'output'=>'Nenhuma configuração enviada.']); break; }
+            $res = (new Rcon($CS_HOST,$CS_PORT,$RCON_PASSWORD))->execute(implode(';', $parts));
+            if ($res['success'] || $res['output'] === '(sem output)') {
+                $res = ['success'=>true,'output'=>'Configurações aplicadas!'];
+            }
+            echo json_encode($res); break;
+
         default: http_response_code(404); echo json_encode(['error'=>'Not found']);
     }
     exit;
@@ -266,6 +296,25 @@ input[type=text]:focus,input[type=password]:focus,.map-inp:focus{outline:none;bo
 .upload-zone:hover,.upload-zone.drag{border-color:#5fa2dd;color:#7ab8e8}
 .upload-zone input{display:none}
 .tag{display:inline-block;background:#1a3a1a;color:#7ab87a;border-radius:3px;padding:1px 6px;font-size:11px;margin-left:4px}
+/* Settings tab */
+.cfg-layout{padding:16px}
+.cfg-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.cfg-top h2{color:#e8a000;font-size:14px;letter-spacing:.5px}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.cfg-sec-title{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;border-bottom:1px solid #1e1e1e;padding-bottom:8px}
+.cfg-row{margin-bottom:14px}
+.cfg-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.cfg-label{color:#aaa;font-size:13px}
+.cfg-val{color:#e8a000;font-size:13px;font-weight:bold;min-width:64px;text-align:right}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:#2a2a2a;border-radius:2px;outline:none;cursor:pointer;accent-color:#e8a000}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e8a000;cursor:pointer}
+.cfg-subtext{color:#444;font-size:11px;margin-top:4px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #141414}
+.toggle-row:last-child{border-bottom:none}
+.toggle-btn{background:#1a1a1a;border:1px solid #333;border-radius:12px;cursor:pointer;padding:4px 14px;font-family:inherit;font-size:12px;color:#555;transition:all .15s;min-width:52px;text-align:center}
+.toggle-btn.on{background:#1a3a1a;border-color:#2a5a2a;color:#7ab87a}
+.cfg-msg{font-size:12px;color:#666;min-width:200px;text-align:right}
+.cfg-msg.ok{color:#7ab87a}.cfg-msg.err{color:#e87070}
 /* Login */
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
 .login-box{background:#111;border:1px solid #222;border-radius:4px;padding:36px;width:320px}
@@ -301,6 +350,7 @@ input[type=text]:focus,input[type=password]:focus,.map-inp:focus{outline:none;bo
 <nav class="tabs">
   <button class="tab active" data-tab="server">Servidor</button>
   <button class="tab" data-tab="maps">Mapas</button>
+  <button class="tab" data-tab="config">⚙️ Configurações</button>
 </nav>
 
 <!-- ═══ TAB: SERVIDOR ═══════════════════════════════════════════════════════ -->
@@ -393,6 +443,23 @@ input[type=text]:focus,input[type=password]:focus,.map-inp:focus{outline:none;bo
 </div>
 </div>
 
+<!-- ═══ TAB: CONFIGURAÇÕES ══════════════════════════════════════════════════ -->
+<div id="tab-config" class="tab-content">
+<div class="cfg-layout">
+  <div class="cfg-top">
+    <h2>⚙️ Configurações de Jogo</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="cfgMsg" class="cfg-msg"></span>
+      <button class="btn sm" onclick="loadSettings()" style="color:#888;border-color:#2a2a2a;background:#161616">↺ Carregar do Servidor</button>
+      <button class="btn green" onclick="applySettings()">✔ Aplicar Configurações</button>
+    </div>
+  </div>
+  <div class="cfg-grid" id="cfgGrid">
+    <div style="color:#444;padding:24px;text-align:center">Carregando configurações...</div>
+  </div>
+</div>
+</div>
+
 <script>
 // ─── Tab switching ────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(btn => {
@@ -401,7 +468,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'maps') { loadMaps(); loadCycle(); }
+    if (btn.dataset.tab === 'maps')   { loadMaps(); loadCycle(); }
+    if (btn.dataset.tab === 'config') { if (!document.getElementById('rng_mp_timelimit')) buildSettings(); loadSettings(); }
   });
 });
 
@@ -589,6 +657,109 @@ async function uploadMap(file) {
 function setUploadMsg(msg, color) {
   const el = document.getElementById('uploadMsg');
   el.textContent = msg; el.style.color = color || '';
+}
+
+// ─── Settings tab ─────────────────────────────────────────────────────────────
+const SETTINGS = [
+  { section:'⏱ Partida', items:[
+    { key:'mp_timelimit',  label:'Duração da Partida',    unit:'min', min:0,  max:60,    step:1,    def:25,   hint:'0 = sem limite de tempo' },
+    { key:'mp_maxrounds',  label:'Máx. Rounds por Mapa',  unit:'',    min:0,  max:30,    step:1,    def:0,    hint:'0 = sem limite de rounds' },
+    { key:'mp_winlimit',   label:'Vitórias para Trocar',   unit:'',    min:0,  max:20,    step:1,    def:0,    hint:'0 = desativado' },
+  ]},
+  { section:'🔄 Rounds', items:[
+    { key:'mp_roundtime',  label:'Tempo do Round',         unit:'min', min:1,  max:5,     step:0.5,  def:2 },
+    { key:'mp_freezetime', label:'Freeze Time',            unit:'seg', min:0,  max:30,    step:1,    def:6 },
+    { key:'mp_buytime',    label:'Tempo de Compra',        unit:'min', min:0,  max:2,     step:0.25, def:0.25 },
+    { key:'mp_c4timer',    label:'Timer da C4',            unit:'seg', min:10, max:90,    step:1,    def:35 },
+  ]},
+  { section:'👥 Jogadores', items:[
+    { key:'mp_startmoney',      label:'Dinheiro Inicial',         unit:'$',  min:800, max:16000, step:200, def:800 },
+    { key:'mp_limitteams',      label:'Desequilíbrio Máx.',       unit:'',   min:0,   max:5,     step:1,   def:2,  hint:'Diferença tolerada entre times (0 = desativado)' },
+    { key:'mp_friendlyfire',    label:'Fogo Amigo',    toggle:true, def:0 },
+    { key:'mp_autoteambalance', label:'Balance Automático',       toggle:true, def:1 },
+    { key:'mp_autokick',        label:'Auto Kick (idle/cheat)',   toggle:true, def:1 },
+  ]},
+];
+
+function buildSettings() {
+  const grid = document.getElementById('cfgGrid');
+  grid.innerHTML = '';
+  for (const sec of SETTINGS) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    let inner = `<h2>${sec.section}</h2>`;
+    for (const s of sec.items) {
+      if (s.toggle) {
+        inner += `<div class="toggle-row">
+          <span class="cfg-label">${s.label}</span>
+          <button class="toggle-btn${s.def?' on':''}" id="tog_${s.key}" data-key="${s.key}" data-val="${s.def}" onclick="toggleCfg(this)">${s.def?'ON':'OFF'}</button>
+        </div>`;
+      } else {
+        inner += `<div class="cfg-row">
+          <div class="cfg-row-head">
+            <span class="cfg-label">${s.label}</span>
+            <span class="cfg-val" id="val_${s.key}">${s.def}${s.unit?' '+s.unit:''}</span>
+          </div>
+          <input type="range" id="rng_${s.key}" data-key="${s.key}" data-unit="${s.unit||''}"
+                 min="${s.min}" max="${s.max}" step="${s.step}" value="${s.def}" oninput="syncRange(this)">
+          ${s.hint?`<div class="cfg-subtext">${s.hint}</div>`:''}
+        </div>`;
+      }
+    }
+    card.innerHTML = inner;
+    grid.appendChild(card);
+  }
+}
+
+function syncRange(el) {
+  const unit = el.dataset.unit;
+  document.getElementById('val_'+el.dataset.key).textContent = el.value + (unit?' '+unit:'');
+}
+
+function toggleCfg(btn) {
+  const v = btn.dataset.val === '1' ? '0' : '1';
+  btn.dataset.val = v;
+  btn.textContent = v === '1' ? 'ON' : 'OFF';
+  btn.classList.toggle('on', v === '1');
+}
+
+async function loadSettings() {
+  setCfgMsg('Carregando...', '');
+  try {
+    const d = await (await fetch('?api=settings_get')).json();
+    if (!d.success) { setCfgMsg('⚠️ Servidor offline ou RCON indisponível', 'err'); return; }
+    for (const [k, v] of Object.entries(d.values)) {
+      const rng = document.getElementById('rng_'+k);
+      const tog = document.getElementById('tog_'+k);
+      if (rng) { rng.value = v; syncRange(rng); }
+      else if (tog) {
+        tog.dataset.val = v === '1' ? '1' : '0';
+        tog.textContent = v === '1' ? 'ON' : 'OFF';
+        tog.classList.toggle('on', v === '1');
+      }
+    }
+    setCfgMsg('✅ Valores carregados do servidor', 'ok');
+  } catch(e) { setCfgMsg('❌ Falha: '+e.message, 'err'); }
+}
+
+async function applySettings() {
+  setCfgMsg('Aplicando...', '');
+  const fd = new FormData();
+  for (const sec of SETTINGS) {
+    for (const s of sec.items) {
+      const el = s.toggle ? document.getElementById('tog_'+s.key) : document.getElementById('rng_'+s.key);
+      if (el) fd.append(s.key, s.toggle ? el.dataset.val : el.value);
+    }
+  }
+  try {
+    const d = await (await fetch('?api=settings_set', {method:'POST', body:fd})).json();
+    setCfgMsg(d.success ? '✅ Configurações aplicadas!' : '❌ '+d.output, d.success?'ok':'err');
+  } catch(e) { setCfgMsg('❌ Falha: '+e.message, 'err'); }
+}
+
+function setCfgMsg(msg, cls) {
+  const el = document.getElementById('cfgMsg');
+  el.textContent = msg; el.className = 'cfg-msg ' + cls;
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
