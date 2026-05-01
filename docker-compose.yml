@@ -54,6 +54,15 @@ services:
     depends_on:
       - cs16
 
+  frontend:
+    build: ./front-end
+    container_name: cs16-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - panel
+
 volumes:
   cs16_data:
   zerotier_data:
