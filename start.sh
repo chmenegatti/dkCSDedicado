@@ -132,6 +132,7 @@ echo "    Server:  $SERVER_NAME"
 echo "    Map:     $MAP | Slots: $MAXPLAYERS | Region: $SERVER_REGION"
 
 cd "$HLDS_DIR"
+export LD_LIBRARY_PATH=".:$HLDS_DIR:$HLDS_DIR/cstrike"
 exec ./hlds_linux \
     -game cstrike \
     -console \
