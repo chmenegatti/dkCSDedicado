@@ -1,4 +1,19 @@
 services:
+  zerotier:
+    image: zyclonite/zerotier:latest
+    container_name: zerotier
+    restart: unless-stopped
+    network_mode: host          # necessário para criar interface virtual no host
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - zerotier_data:/var/lib/zerotier-one
+    environment:
+      NETWORK_ID: ${ZEROTIER_NETWORK_ID}
+
   cs16:
     build: .
     container_name: cs16-server
@@ -8,6 +23,8 @@ services:
     volumes:
       - cs16_data:/home/steam/hlds
     env_file: .env
+    depends_on:
+      - zerotier
 
   panel:
     build: ./panel
@@ -24,3 +41,4 @@ services:
 
 volumes:
   cs16_data:
+  zerotier_data:
