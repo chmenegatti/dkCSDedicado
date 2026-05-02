@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Play, Plus, Save, RotateCw, Upload, X, GripVertical, Map as MapIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function MapsTab() {
+  const queryClient = useQueryClient();
   const [q, setQ] = useState("");
   const [rotation, setRotation] = useState<string[]>([]);
 
@@ -70,7 +71,13 @@ export default function MapsTab() {
     try {
       const res = await api.mapsUpload(file);
       if (res.success) {
-        toast.success(`Mapa "${res.name}" enviado com sucesso`);
+        if (res.maps && res.maps.length > 1) {
+          toast.success(`${res.maps.length} mapas extraídos: ${res.maps.join(', ')}`);
+        } else {
+          const name = res.maps?.[0] ?? res.name;
+          toast.success(`Mapa "${name}" enviado com sucesso`);
+        }
+        queryClient.invalidateQueries({ queryKey: ['maps'] });
       } else {
         toast.error(res.error ?? 'Falha no upload');
       }

@@ -228,7 +228,6 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 
         case 'maps_upload':
             if (!$isPost) { http_response_code(405); break; }
-            // Detect silent failure when post body exceeded post_max_size
             if (empty($_FILES) && $_SERVER['CONTENT_LENGTH'] > 0) {
                 echo json_encode(['success'=>false,'error'=>'Arquivo muito grande (máx 64 MB).']); break;
             }
@@ -237,19 +236,70 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
                 $errs = [1=>'Muito grande',2=>'Muito grande',3=>'Parcial',4=>'Sem arquivo',6=>'Sem /tmp',7=>'Falha ao gravar'];
                 echo json_encode(['success'=>false,'error'=>$errs[$f['error']??0]??'Erro de upload']); break;
             }
-            $name = basename($f['name']);
-            if (!preg_match('/^[a-z0-9_\-]+\.bsp$/i', $name)) {
-                echo json_encode(['success'=>false,'error'=>'Somente arquivos .bsp com nome válido.']); break;
-            }
             $mapsDir = "$CSTRIKE/maps";
             if (!is_dir($mapsDir)) { echo json_encode(['success'=>false,'error'=>'Diretório maps/ não encontrado.']); break; }
-            $dest = "$mapsDir/$name";
-            $part = "$dest.part";
-            if (!move_uploaded_file($f['tmp_name'], $part)) {
-                echo json_encode(['success'=>false,'error'=>'Falha ao mover arquivo.']); break;
+
+            $origName = basename($f['name']);
+            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+            $tmpPath  = $f['tmp_name'];
+            $saved    = [];
+
+            if ($ext === 'bsp') {
+                // Arquivo direto
+                $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo($origName, PATHINFO_FILENAME)) . '.bsp';
+                $dest    = "$mapsDir/$bspName";
+                if (!move_uploaded_file($tmpPath, $dest)) {
+                    echo json_encode(['success'=>false,'error'=>'Falha ao salvar .bsp.']); break;
+                }
+                $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+
+            } elseif ($ext === 'zip') {
+                $zip = new ZipArchive();
+                if ($zip->open($tmpPath) !== true) {
+                    echo json_encode(['success'=>false,'error'=>'Não foi possível abrir o .zip.']); break;
+                }
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $entry    = $zip->getNameIndex($i);
+                    $entryExt = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+                    if ($entryExt !== 'bsp') continue;
+                    $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo(basename($entry), PATHINFO_FILENAME)) . '.bsp';
+                    $dest    = "$mapsDir/$bspName";
+                    $data    = $zip->getFromIndex($i);
+                    if ($data === false) continue;
+                    file_put_contents($dest, $data);
+                    $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+                }
+                $zip->close();
+                if (empty($saved)) { echo json_encode(['success'=>false,'error'=>'Nenhum .bsp encontrado no .zip.']); break; }
+
+            } elseif ($ext === 'rar') {
+                // Usa unrar-free instalado na imagem
+                $tmpRar  = tempnam(sys_get_temp_dir(), 'rar_') . '.rar';
+                move_uploaded_file($tmpPath, $tmpRar);
+                $tmpExtract = sys_get_temp_dir() . '/rar_extract_' . uniqid();
+                mkdir($tmpExtract, 0750, true);
+                $cmd = 'unrar e -y ' . escapeshellarg($tmpRar) . ' ' . escapeshellarg($tmpExtract) . ' 2>&1';
+                exec($cmd, $out, $rc);
+                @unlink($tmpRar);
+                if ($rc !== 0) {
+                    echo json_encode(['success'=>false,'error'=>'Falha ao extrair .rar: ' . implode(' ', $out)]); break;
+                }
+                foreach (glob("$tmpExtract/*.bsp") as $bspFile) {
+                    $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo(basename($bspFile), PATHINFO_FILENAME)) . '.bsp';
+                    $dest    = "$mapsDir/$bspName";
+                    rename($bspFile, $dest);
+                    $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+                }
+                // Limpa tmpExtract
+                foreach (glob("$tmpExtract/*") as $leftover) @unlink($leftover);
+                @rmdir($tmpExtract);
+                if (empty($saved)) { echo json_encode(['success'=>false,'error'=>'Nenhum .bsp encontrado no .rar.']); break; }
+
+            } else {
+                echo json_encode(['success'=>false,'error'=>'Formato não suportado. Use .bsp, .zip ou .rar.']); break;
             }
-            rename($part, $dest);
-            echo json_encode(['success'=>true,'name'=>basename($name,'.bsp')]); break;
+
+            echo json_encode(['success'=>true,'maps'=>$saved,'count'=>count($saved)]); break;
 
         case 'botnames_get':
             $file = "$CSTRIKE/addons/podbot/botnames.txt";
