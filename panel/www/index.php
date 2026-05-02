@@ -237,21 +237,53 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
                 echo json_encode(['success'=>false,'error'=>$errs[$f['error']??0]??'Erro de upload']); break;
             }
             $mapsDir = "$CSTRIKE/maps";
+            $wptDir  = "$CSTRIKE/addons/podbot/wptdefault";
             if (!is_dir($mapsDir)) { echo json_encode(['success'=>false,'error'=>'Diretório maps/ não encontrado.']); break; }
+
+            // Helper: sanitize filename (keep only safe chars)
+            $safeName = function(string $raw, string $newExt): string {
+                $base = pathinfo(basename($raw), PATHINFO_FILENAME);
+                $base = preg_replace('/[^a-z0-9_\-]/i', '_', $base);
+                return $base . '.' . $newExt;
+            };
+
+            // Helper: save a file entry by extension to the correct directory
+            $saveEntry = function(string $name, string $data) use ($mapsDir, $wptDir, $safeName, &$saved, &$savedWpt): void {
+                $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                if ($ext === 'bsp') {
+                    $dest = "$mapsDir/" . $safeName($name, 'bsp');
+                    file_put_contents($dest, $data);
+                    $saved[] = pathinfo($dest, PATHINFO_FILENAME);
+                } elseif (in_array($ext, ['pwf','pxp','pvi'], true)) {
+                    if (is_dir($wptDir)) {
+                        $dest = "$wptDir/" . $safeName($name, $ext);
+                        file_put_contents($dest, $data);
+                        $savedWpt[] = basename($dest);
+                    }
+                }
+            };
 
             $origName = basename($f['name']);
             $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
             $tmpPath  = $f['tmp_name'];
             $saved    = [];
+            $savedWpt = [];
 
             if ($ext === 'bsp') {
-                // Arquivo direto
-                $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo($origName, PATHINFO_FILENAME)) . '.bsp';
-                $dest    = "$mapsDir/$bspName";
+                $dest = "$mapsDir/" . $safeName($origName, 'bsp');
                 if (!move_uploaded_file($tmpPath, $dest)) {
                     echo json_encode(['success'=>false,'error'=>'Falha ao salvar .bsp.']); break;
                 }
-                $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+                $saved[] = pathinfo($dest, PATHINFO_FILENAME);
+
+            } elseif ($ext === 'pwf') {
+                // Waypoint direto
+                if (!is_dir($wptDir)) { echo json_encode(['success'=>false,'error'=>'Diretório wptdefault/ não encontrado.']); break; }
+                $dest = "$wptDir/" . $safeName($origName, 'pwf');
+                if (!move_uploaded_file($tmpPath, $dest)) {
+                    echo json_encode(['success'=>false,'error'=>'Falha ao salvar .pwf.']); break;
+                }
+                $savedWpt[] = basename($dest);
 
             } elseif ($ext === 'zip') {
                 $zip = new ZipArchive();
@@ -259,24 +291,20 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
                     echo json_encode(['success'=>false,'error'=>'Não foi possível abrir o .zip.']); break;
                 }
                 for ($i = 0; $i < $zip->numFiles; $i++) {
-                    $entry    = $zip->getNameIndex($i);
-                    $entryExt = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-                    if ($entryExt !== 'bsp') continue;
-                    $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo(basename($entry), PATHINFO_FILENAME)) . '.bsp';
-                    $dest    = "$mapsDir/$bspName";
-                    $data    = $zip->getFromIndex($i);
+                    $entry = $zip->getNameIndex($i);
+                    $data  = $zip->getFromIndex($i);
                     if ($data === false) continue;
-                    file_put_contents($dest, $data);
-                    $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+                    $saveEntry($entry, $data);
                 }
                 $zip->close();
-                if (empty($saved)) { echo json_encode(['success'=>false,'error'=>'Nenhum .bsp encontrado no .zip.']); break; }
+                if (empty($saved) && empty($savedWpt)) {
+                    echo json_encode(['success'=>false,'error'=>'Nenhum .bsp ou .pwf encontrado no .zip.']); break;
+                }
 
             } elseif ($ext === 'rar') {
-                // Usa unrar-free instalado na imagem
-                $tmpRar  = tempnam(sys_get_temp_dir(), 'rar_') . '.rar';
-                move_uploaded_file($tmpPath, $tmpRar);
+                $tmpRar     = tempnam(sys_get_temp_dir(), 'rar_') . '.rar';
                 $tmpExtract = sys_get_temp_dir() . '/rar_extract_' . uniqid();
+                move_uploaded_file($tmpPath, $tmpRar);
                 mkdir($tmpExtract, 0750, true);
                 $cmd = 'unrar e -y ' . escapeshellarg($tmpRar) . ' ' . escapeshellarg($tmpExtract) . ' 2>&1';
                 exec($cmd, $out, $rc);
@@ -284,22 +312,21 @@ $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
                 if ($rc !== 0) {
                     echo json_encode(['success'=>false,'error'=>'Falha ao extrair .rar: ' . implode(' ', $out)]); break;
                 }
-                foreach (glob("$tmpExtract/*.bsp") as $bspFile) {
-                    $bspName = preg_replace('/[^a-z0-9_\-]/i', '_', pathinfo(basename($bspFile), PATHINFO_FILENAME)) . '.bsp';
-                    $dest    = "$mapsDir/$bspName";
-                    rename($bspFile, $dest);
-                    $saved[] = pathinfo($bspName, PATHINFO_FILENAME);
+                foreach (glob("$tmpExtract/*") as $file) {
+                    $data = file_get_contents($file);
+                    if ($data !== false) $saveEntry(basename($file), $data);
+                    @unlink($file);
                 }
-                // Limpa tmpExtract
-                foreach (glob("$tmpExtract/*") as $leftover) @unlink($leftover);
                 @rmdir($tmpExtract);
-                if (empty($saved)) { echo json_encode(['success'=>false,'error'=>'Nenhum .bsp encontrado no .rar.']); break; }
+                if (empty($saved) && empty($savedWpt)) {
+                    echo json_encode(['success'=>false,'error'=>'Nenhum .bsp ou .pwf encontrado no .rar.']); break;
+                }
 
             } else {
-                echo json_encode(['success'=>false,'error'=>'Formato não suportado. Use .bsp, .zip ou .rar.']); break;
+                echo json_encode(['success'=>false,'error'=>'Formato não suportado. Use .bsp, .zip, .rar ou .pwf.']); break;
             }
 
-            echo json_encode(['success'=>true,'maps'=>$saved,'count'=>count($saved)]); break;
+            echo json_encode(['success'=>true,'maps'=>$saved,'count'=>count($saved),'waypoints'=>$savedWpt]); break;
 
         case 'botnames_get':
             $file = "$CSTRIKE/addons/podbot/botnames.txt";

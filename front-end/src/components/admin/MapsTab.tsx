@@ -77,6 +77,9 @@ export default function MapsTab() {
           const name = res.maps?.[0] ?? res.name;
           toast.success(`Mapa "${name}" enviado com sucesso`);
         }
+        if (res.waypoints && res.waypoints.length > 0) {
+          toast.success(`${res.waypoints.length} waypoint(s) para bots instalado(s) ✓`);
+        }
         queryClient.invalidateQueries({ queryKey: ['maps'] });
       } else {
         toast.error(res.error ?? 'Falha no upload');
@@ -154,7 +157,7 @@ export default function MapsTab() {
         <section className="panel">
           <div className="panel-header">
             <Upload className="h-3.5 w-3.5 text-primary" />
-            Upload de Mapa <span className="text-muted-foreground/70 normal-case">(.bsp / .zip / .rar, máx 64 mb)</span>
+            Upload de Mapa <span className="text-muted-foreground/70 normal-case">(.bsp / .zip / .rar / .pwf, máx 64 mb)</span>
           </div>
           <div className="p-4">
             <label className="flex flex-col items-center justify-center gap-3 py-10 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-all group">
@@ -164,10 +167,13 @@ export default function MapsTab() {
                   Clique ou arraste um arquivo aqui
                 </div>
                 <div className="font-mono text-xs text-muted-foreground mt-1">
-                  <span className="text-primary">.bsp</span> · <span className="text-primary">.zip</span> · <span className="text-primary">.rar</span> &nbsp;— máx 64 MB
+                  <span className="text-primary">.bsp</span> · <span className="text-primary">.zip</span> · <span className="text-primary">.rar</span> · <span className="text-primary">.pwf</span> &nbsp;— máx 64 MB
+                </div>
+                <div className="font-mono text-xs text-muted-foreground/60 mt-0.5">
+                  Pacotes .zip/.rar com .bsp + .pwf instalam o mapa e os waypoints dos bots juntos
                 </div>
               </div>
-              <input type="file" accept=".bsp,.zip,.rar,application/zip,application/x-rar-compressed" className="hidden" onChange={handleUpload} />
+              <input type="file" accept=".bsp,.zip,.rar,.pwf,application/zip,application/x-rar-compressed" className="hidden" onChange={handleUpload} />
             </label>
           </div>
         </section>
