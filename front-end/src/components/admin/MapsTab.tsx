@@ -147,18 +147,20 @@ export default function MapsTab() {
         <section className="panel">
           <div className="panel-header">
             <Upload className="h-3.5 w-3.5 text-primary" />
-            Upload de Mapa <span className="text-muted-foreground/70 normal-case">(.bsp, máx 64 mb)</span>
+            Upload de Mapa <span className="text-muted-foreground/70 normal-case">(.bsp / .zip / .rar, máx 64 mb)</span>
           </div>
           <div className="p-4">
             <label className="flex flex-col items-center justify-center gap-3 py-10 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-all group">
               <Upload className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
               <div className="text-center">
                 <div className="font-mono text-sm">
-                  Clique ou arraste um arquivo <span className="text-primary">.bsp</span> aqui
+                  Clique ou arraste um arquivo aqui
                 </div>
-                <div className="font-mono text-xs text-muted-foreground mt-1">tamanho máximo: 64 MB</div>
+                <div className="font-mono text-xs text-muted-foreground mt-1">
+                  <span className="text-primary">.bsp</span> · <span className="text-primary">.zip</span> · <span className="text-primary">.rar</span> &nbsp;— máx 64 MB
+                </div>
               </div>
-              <input type="file" accept=".bsp" className="hidden" onChange={handleUpload} />
+              <input type="file" accept=".bsp,.zip,.rar,application/zip,application/x-rar-compressed" className="hidden" onChange={handleUpload} />
             </label>
           </div>
         </section>
